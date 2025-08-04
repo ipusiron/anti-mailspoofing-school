@@ -23,43 +23,64 @@ h1 {
 .tab-nav {
   display: flex;
   justify-content: center;
-  background-color: #ffffff;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  background-color: #f8f9fa;
+  border-bottom: 1px solid #e2e8f0;
+  padding: 0 2rem;
+  gap: 2px;
 }
 
 .tab-button {
-  flex: 1;
-  padding: 1rem;
-  background-color: transparent;
+  padding: 0.75rem 1.5rem;
+  background-color: #e2e8f0;
   border: none;
+  border-radius: 8px 8px 0 0;
   cursor: pointer;
   font-size: 1rem;
-  transition: background-color 0.2s;
+  font-weight: 500;
+  color: #4a5568;
+  position: relative;
+  transition: all 0.3s ease;
+  margin-top: 4px;
 }
 
 .tab-button:hover {
-  background-color: #eef3fa;
+  background-color: #cbd5e0;
+  transform: translateY(-2px);
 }
 
 .tab-button.active {
-  background-color: #dce9f9;
-  font-weight: bold;
+  background-color: #ffffff;
+  color: #2d3748;
+  font-weight: 600;
+  transform: translateY(0);
+  border: 1px solid #e2e8f0;
+  border-bottom: 1px solid #ffffff;
+  z-index: 1;
+}
+
+.tab-button.active:hover {
+  transform: translateY(0);
 }
 
 main {
-  padding: 2rem;
+  padding: 0;
   display: flex;
   justify-content: center;
+  background-color: #f8f9fa;
+  min-height: calc(100vh - 200px);
 }
 
 .tab-content {
   display: none;
-  max-width: 800px;
+  max-width: 1200px;
   width: 100%;
   background: white;
   padding: 2rem;
-  border-radius: 12px;
-  box-shadow: 0 0 10px rgba(0,0,0,0.05);
+  margin: 0 2rem 2rem 2rem;
+  border-radius: 0 12px 12px 12px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  border: 1px solid #e2e8f0;
+  border-top: none;
 }
 
 .tab-content.active {
@@ -1387,28 +1408,36 @@ footer {
 /* ヘルプボタン */
 .help-button {
   position: fixed;
-  top: 20px;
-  right: 20px;
+  top: 2rem; /* ヘッダーの高さに合わせてツール名と同じ行に配置 */
+  right: calc(50% - 600px + 2rem + 50px); /* コンテンツエリア右端から50px内側 */
   width: 50px;
   height: 50px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  border: none;
+  background: #ffffff;
+  color: #4a90e2;
+  border: 2px solid rgba(74, 144, 226, 0.2);
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 1.5rem;
   font-weight: bold;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   transition: all 0.3s ease;
   z-index: 1000;
 }
 
+@media (max-width: 1300px) {
+  .help-button {
+    right: 20px; /* 画面幅が狭い時は従来の位置に戻す */
+  }
+}
+
 .help-button:hover {
   transform: translateY(-2px) scale(1.05);
-  box-shadow: 0 6px 16px rgba(0,0,0,0.2);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+  border-color: rgba(74, 144, 226, 0.4);
+  background: #f8fafc;
 }
 
 .help-button:active {
@@ -1479,10 +1508,10 @@ footer {
 }
 
 .help-close {
-  background: none;
-  border: none;
-  font-size: 2rem;
-  color: white;
+  background: #ffffff;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  font-size: 1.5rem;
+  color: #4a90e2;
   cursor: pointer;
   padding: 0;
   width: 30px;
@@ -1491,11 +1520,15 @@ footer {
   align-items: center;
   justify-content: center;
   border-radius: 50%;
-  transition: background-color 0.3s;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 .help-close:hover {
-  background-color: rgba(255,255,255,0.2);
+  background-color: #f8fafc;
+  border-color: rgba(255, 255, 255, 0.5);
+  transform: scale(1.1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
 .help-modal-body {
@@ -1570,13 +1603,36 @@ footer {
   text-decoration: underline;
 }
 
-/* ヘルプボタンのモバイル対応 */
+/* タブナビゲーションのレスポンシブ対応 */
+@media (max-width: 768px) {
+  .tab-nav {
+    padding: 0 1rem;
+    gap: 1px;
+  }
+  
+  .tab-button {
+    padding: 0.6rem 1rem;
+    font-size: 0.9rem;
+  }
+  
+  main {
+    min-height: calc(100vh - 180px);
+  }
+  
+  .tab-content {
+    margin: 0 1rem 1rem 1rem;
+    padding: 1.5rem;
+    border-radius: 0 8px 8px 8px;
+  }
+}
+
+/* ヘルプボタンとモーダルのモバイル対応 */
 @media (max-width: 768px) {
   .help-button {
     width: 45px;
     height: 45px;
     font-size: 1.3rem;
-    top: 15px;
+    top: 1.5rem; /* モバイルでもヘッダーと同じ行に配置 */
     right: 15px;
   }
   

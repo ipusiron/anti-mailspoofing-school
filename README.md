@@ -4,6 +4,7 @@
 ![GitHub forks](https://img.shields.io/github/forks/ipusiron/anti-mailspoofing-school?style=social)
 ![GitHub last commit](https://img.shields.io/github/last-commit/ipusiron/anti-mailspoofing-school)
 ![GitHub license](https://img.shields.io/github/license/ipusiron/anti-mailspoofing-school)
+[![GitHub Pages](https://img.shields.io/badge/demo-GitHub%20Pages-blue?logo=github)](https://ipusiron.github.io/anti-mailspoofing-school/)
 
 **Day035 - 生成AIで作るセキュリティツール100**
 
@@ -69,6 +70,15 @@
 ## 📂 ディレクトリー構成
 
 ```
+anti-mailspoofing-school/
+├── index.html
+├── style.css
+├── js/
+│   ├── main.js         ← タブ切り替えと初期化
+│   ├── learn.js        ← 学習タブの処理
+│   ├── simulate.js     ← シミュレーションタブの処理
+│   └── challenge.js    ← チャレンジタブの処理
+└── images/（※任意）
 ```
 
 ---

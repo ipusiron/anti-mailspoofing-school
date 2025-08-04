@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Anti-MailSpoofing School</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <h1>Anti-MailSpoofing School</h1>
+    <p>SPF / DKIM / DMARC を体験的に学ぼう！</p>
+  </header>
+
+  <nav class="tab-nav">
+    <button class="tab-button active" data-tab="learn">学習モード</button>
+    <button class="tab-button" data-tab="simulate">シミュレーション</button>
+    <button class="tab-button" data-tab="challenge">チャレンジ</button>
+  </nav>
+
+  <main>
+    <section id="learn" class="tab-content active">
+      <h2>📘 SPF / DKIM / DMARCとは？</h2>
+      <p>メール認証技術のしくみをわかりやすく解説します。</p>
+      <!-- 図や解説をここに追加予定 -->
+    </section>
+
+    <section id="simulate" class="tab-content">
+      <h2>🧪 シミュレーションモード</h2>
+      <p>条件を入力して、メール認証がどう判定されるかを確認しましょう。</p>
+      <!-- 入力フォームと判定結果表示をここに追加予定 -->
+    </section>
+
+    <section id="challenge" class="tab-content">
+      <h2>🎯 チャレンジモード</h2>
+      <p>検証ログを見て、なりすましを見抜けるか挑戦してみよう！</p>
+      <!-- クイズ形式のUIをここに追加予定 -->
+    </section>
+  </main>
+
+  <footer>
+    <div class="footer">
+      🔗 GitHubリポジトリはこちら（ <a href="https://github.com/ipusiron/anti-mailspoofing-school" target="_blank">ipusiron/anti-mailspoofing-school</a> ）
+    </div>
+  </footer>
+
+  <script src="js/main.js"></script>
+  <script src="js/learn.js"></script>
+  <script src="js/simulate.js"></script>
+  <script src="js/challenge.js"></script>
+</body>
+</html>

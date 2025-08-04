@@ -18,6 +18,91 @@
     <button class="tab-button" data-tab="challenge">チャレンジ</button>
   </nav>
 
+  <!-- ヘルプボタン -->
+  <button id="help-button" class="help-button" title="ヘルプ">
+    <span>?</span>
+  </button>
+
+  <!-- ヘルプモーダル -->
+  <div id="help-modal" class="help-modal">
+    <div class="help-modal-content">
+      <div class="help-modal-header">
+        <h2>📖 ヘルプ</h2>
+        <button id="help-close" class="help-close">&times;</button>
+      </div>
+      <div class="help-modal-body">
+        <div class="help-section">
+          <h3>🌟 このツールについて</h3>
+          <p>Anti-MailSpoofing School は、メールなりすまし対策を学べる教育用ツールです。SPF/DKIM/DMARCの仕組みを視覚的かつ体験的に学べます。</p>
+        </div>
+
+        <div class="help-section">
+          <h3>📘 学習モード</h3>
+          <p><strong>SPF/DKIM/DMARCの基本概念を学習</strong></p>
+          <ul>
+            <li><strong>SPF</strong>: 送信元IPアドレスが正当かどうかを検証（配達員の所属確認）</li>
+            <li><strong>DKIM</strong>: メールが改ざんされていないことを保証（封印とサイン）</li>
+            <li><strong>DMARC</strong>: SPF/DKIMの結果に基づいて処理方針を決定（ルールに基づく判断）</li>
+          </ul>
+          <p>📧 <strong>メール認証の流れ</strong>では、アニメーション付きで実際の認証プロセスを可視化します。</p>
+        </div>
+
+        <div class="help-section">
+          <h3>🧪 シミュレーションモード</h3>
+          <p><strong>実際のメール認証をシミュレーション</strong></p>
+          <ul>
+            <li><strong>プリセットシナリオ</strong>: よくあるパターンを選択して実行</li>
+            <li><strong>カスタム入力</strong>: 独自の条件を設定して検証</li>
+            <li><strong>ステップ実行</strong>: SPF → DKIM → DMARC の順で段階的に表示</li>
+            <li><strong>DNS可視化</strong>: DNSレコード照会の流れを図解</li>
+            <li><strong>詳細解説</strong>: 各ステップの技術的詳細を表示</li>
+            <li><strong>改善提案</strong>: セキュリティレベルに応じた推奨設定</li>
+          </ul>
+        </div>
+
+        <div class="help-section">
+          <h3>🎯 チャレンジモード</h3>
+          <p><strong>実践的なクイズで理解度をチェック</strong></p>
+          <ul>
+            <li><strong>3つの難易度</strong>: 初級 → 中級 → 上級の段階的学習</li>
+            <li><strong>連続正解システム</strong>: 3回連続正解で次のレベル解放</li>
+            <li><strong>問題データベース</strong>: 各レベル3問ずつ、計9問</li>
+            <li><strong>解説付き</strong>: 正答・誤答に関わらず詳細な解説を表示</li>
+            <li><strong>進捗管理</strong>: 正答率、連続正解数、現在のレベルを表示</li>
+            <li><strong>完全クリア</strong>: 上級レベルで3回連続正解するとクリア</li>
+          </ul>
+        </div>
+
+        <div class="help-section">
+          <h3>💡 使い方のコツ</h3>
+          <ul>
+            <li>最初に<strong>学習モード</strong>で基本概念を理解しましょう</li>
+            <li><strong>シミュレーションモード</strong>でプリセットシナリオを試してみましょう</li>
+            <li><strong>チャレンジモード</strong>は間違えても解説で学習できます</li>
+            <li>各タブを行き来しながら理解を深めてください</li>
+          </ul>
+        </div>
+
+        <div class="help-section">
+          <h3>🔧 技術仕様</h3>
+          <ul>
+            <li>HTML/CSS/JavaScript（フロントエンドのみ）</li>
+            <li>サーバー不要、ブラウザで完結</li>
+            <li>モダンブラウザ対応（Chrome、Firefox、Safari、Edge）</li>
+            <li>レスポンシブデザイン（スマートフォン対応）</li>
+          </ul>
+        </div>
+
+        <div class="help-section">
+          <h3>📚 参考情報</h3>
+          <p>このツールは「生成AIで作るセキュリティツール100」プロジェクトの一環として開発されました。</p>
+          <p>🔗 <a href="https://github.com/ipusiron/anti-mailspoofing-school" target="_blank">GitHubリポジトリ</a></p>
+          <p>🔗 <a href="https://akademeia.info/?page_id=42163" target="_blank">プロジェクト詳細</a></p>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <main>
     <section id="learn" class="tab-content active">
       <h2>📘 SPF / DKIM / DMARCとは？</h2>

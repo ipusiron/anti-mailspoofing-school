@@ -1,6 +1,17 @@
 document.addEventListener("DOMContentLoaded", () => {
   const simulateSection = document.getElementById("simulate");
 
+  // HTMLエスケープ関数（XSS対策）
+  function escapeHtml(unsafe) {
+    if (typeof unsafe !== 'string') return unsafe;
+    return unsafe
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
+  }
+
   // プリセットシナリオの定義
   const scenarios = [
     {
@@ -287,25 +298,25 @@ document.addEventListener("DOMContentLoaded", () => {
           <div class="dns-query-step">
             <div class="query-icon">📧</div>
             <div class="query-label">送信メール</div>
-            <div class="query-detail">From: sender@example.com<br>IP: ${ip}</div>
+            <div class="query-detail">From: sender@example.com<br>IP: ${escapeHtml(ip)}</div>
           </div>
-          
+
           <div class="dns-arrow">→</div>
-          
+
           <div class="dns-query-step">
             <div class="query-icon">🔍</div>
             <div class="query-label">DNS照会</div>
             <div class="query-detail">dig TXT example.com</div>
           </div>
-          
+
           <div class="dns-arrow">→</div>
-          
+
           <div class="dns-query-step">
             <div class="query-icon">📋</div>
             <div class="query-label">レコード取得</div>
             <div class="query-detail">
-              <div class="dns-record spf-record">SPF: ${spf}</div>
-              <div class="dns-record dmarc-record">DMARC: v=DMARC1; p=${dmarc};</div>
+              <div class="dns-record spf-record">SPF: ${escapeHtml(spf)}</div>
+              <div class="dns-record dmarc-record">DMARC: v=DMARC1; p=${escapeHtml(dmarc)};</div>
             </div>
           </div>
         </div>
@@ -316,33 +327,33 @@ document.addEventListener("DOMContentLoaded", () => {
   function displayExplanationMode(results, ip, spf, dkim, dmarc) {
     const spfResult = results.spf.status === "PASS";
     const dkimResult = results.dkim.status === "PASS";
-    
+
     const explanations = [];
-    
+
     // SPF解説
     explanations.push({
       title: "SPF認証の仕組み",
-      content: spfResult 
-        ? `✅ 送信IP「${ip}」がSPFレコードに含まれているため認証成功。送信者が正当であることが確認できました。`
-        : `❌ 送信IP「${ip}」がSPFレコードに含まれていないため認証失敗。なりすましの可能性があります。`,
-      technical: `SPFレコード「${spf}」を解析し、許可されたIPアドレスリストと送信IPを照合しました。`
+      content: spfResult
+        ? `✅ 送信IP「${escapeHtml(ip)}」がSPFレコードに含まれているため認証成功。送信者が正当であることが確認できました。`
+        : `❌ 送信IP「${escapeHtml(ip)}」がSPFレコードに含まれていないため認証失敗。なりすましの可能性があります。`,
+      technical: `SPFレコード「${escapeHtml(spf)}」を解析し、許可されたIPアドレスリストと送信IPを照合しました。`
     });
-    
+
     // DKIM解説
     explanations.push({
-      title: "DKIM認証の仕組み", 
+      title: "DKIM認証の仕組み",
       content: dkimResult
         ? "✅ メールに有効なDKIM署名が付与されており、内容の改ざんがないことが確認できました。"
         : "❌ DKIM署名がないか無効なため、メールの完全性を保証できません。",
       technical: "DNSから公開鍵を取得し、メールヘッダの署名を検証しました。"
     });
-    
+
     // DMARC解説
     const dmarcStatus = results.dmarc.status;
     explanations.push({
       title: "DMARC判定の仕組み",
-      content: `DMARC認証結果: ${dmarcStatus}。SPF(${spfResult ? 'PASS' : 'FAIL'})とDKIM(${dkimResult ? 'PASS' : 'FAIL'})の結果を総合的に判断しました。`,
-      technical: `DMARCポリシー「${dmarc}」に従って最終的な処理方針を決定しました。`
+      content: `DMARC認証結果: ${escapeHtml(dmarcStatus)}。SPF(${spfResult ? 'PASS' : 'FAIL'})とDKIM(${dkimResult ? 'PASS' : 'FAIL'})の結果を総合的に判断しました。`,
+      technical: `DMARCポリシー「${escapeHtml(dmarc)}」に従って最終的な処理方針を決定しました。`
     });
 
     explanationMode.innerHTML = `
@@ -366,14 +377,14 @@ document.addEventListener("DOMContentLoaded", () => {
     const recommendations = [];
     const spfResult = results.spf.status === "PASS";
     const dkimResult = results.dkim.status === "PASS";
-    
+
     // SPF推奨事項
     if (!spfResult) {
       recommendations.push({
         type: "error",
         title: "SPF設定の改善",
-        content: `送信IP「${ip}」をSPFレコードに追加してください。`,
-        action: `推奨SPFレコード: v=spf1 ip4:${ip} include:${spf.split(' ').find(s => s.startsWith('ip4:'))?.replace('ip4:', '') || 'your-domain.com'} -all`
+        content: `送信IP「${escapeHtml(ip)}」をSPFレコードに追加してください。`,
+        action: `推奨SPFレコード: v=spf1 ip4:${escapeHtml(ip)} include:${escapeHtml(spf.split(' ').find(s => s.startsWith('ip4:'))?.replace('ip4:', '') || 'your-domain.com')} -all`
       });
     }
     
@@ -431,16 +442,16 @@ document.addEventListener("DOMContentLoaded", () => {
 
   async function executeStep(step, ip, spf, dkim, dmarc, previousResults) {
     await sleep(400); // アニメーション効果
-    
+
     switch (step.id) {
       case "spf":
         const spfPass = spf.includes(`ip4:${ip}`);
         return {
           status: spfPass ? "PASS" : "FAIL",
-          reason: spfPass 
-            ? `送信IP ${ip} はSPFレコードに登録されています`
-            : `送信IP ${ip} はSPFレコードに登録されていません`,
-          details: `SPFレコード: ${spf}`
+          reason: spfPass
+            ? `送信IP ${escapeHtml(ip)} はSPFレコードに登録されています`
+            : `送信IP ${escapeHtml(ip)} はSPFレコードに登録されていません`,
+          details: `SPFレコード: ${escapeHtml(spf)}`
         };
         
       case "dkim":
@@ -456,7 +467,7 @@ document.addEventListener("DOMContentLoaded", () => {
       case "dmarc":
         const spfResult = previousResults.spf.status === "PASS";
         const dkimResult = previousResults.dkim.status === "PASS";
-        
+
         let dmarcResult, reason;
         if (spfResult || dkimResult) {
           dmarcResult = "PASS";
@@ -473,11 +484,11 @@ document.addEventListener("DOMContentLoaded", () => {
             reason = "SPF/DKIM共に失敗し、DMARCポリシーによりメールを拒否します";
           }
         }
-        
+
         return {
           status: dmarcResult,
           reason: reason,
-          details: `DMARCポリシー: ${dmarc}`
+          details: `DMARCポリシー: ${escapeHtml(dmarc)}`
         };
     }
   }

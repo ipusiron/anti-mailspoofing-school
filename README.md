@@ -1,3 +1,38 @@
+<!--
+---
+id: day035
+slug: anti-mailspoofing-school
+
+title: "Anti-MailSpoofing School"
+
+subtitle_ja: "メールなりすまし対策学習ツール"
+subtitle_en: "Email Spoofing Defense Learning Tool"
+
+description_ja: "SPF/DKIM/DMARCの仕組みを視覚的・体験的に学べる教育用Webアプリ。学習モード、シミュレーションモード、チャレンジモードの3つのモードで段階的に理解を深められます。"
+description_en: "An educational web app for learning SPF/DKIM/DMARC email authentication mechanisms through visual explanations, interactive simulations, and progressive challenges."
+
+category_ja:
+  - メールセキュリティ
+category_en:
+  - Email Security
+
+difficulty: 2
+
+tags:
+  - SPF
+  - DKIM
+  - DMARC
+  - email-authentication
+  - phishing-prevention
+  - security-education
+
+repo_url: "https://github.com/ipusiron/anti-mailspoofing-school"
+demo_url: "https://ipusiron.github.io/anti-mailspoofing-school/"
+
+hub: true
+---
+-->
+
 # Anti-MailSpoofing School - メールなりすまし対策学習ツール
 
 ![GitHub Repo stars](https://img.shields.io/github/stars/ipusiron/anti-mailspoofing-school?style=social)

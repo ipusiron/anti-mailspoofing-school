@@ -50,7 +50,7 @@ test('record checker known answers match the tools in both READMEs', () => {
   const order = { error: 0, warning: 1, info: 2 };
   for (const [lang, heading] of [['ja', '### レコード診断の既知解答'], ['en', '### Record checker known answers']]) {
     const rows = tableAfter(readme[lang], heading);
-    assert.equal(rows.length, 8, lang);
+    assert.equal(rows.length, 11, lang);
     for (const [kind, record, status, text] of rows) {
       const findings = (kind === 'SPF' ? T.lintSpf(record) : T.lintDmarc(record)).sort((a, b) => order[a.level] - order[b.level]);
       assert.equal(T.worst(findings), status, `${lang}: ${record}`);

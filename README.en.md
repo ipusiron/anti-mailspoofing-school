@@ -74,8 +74,10 @@ It can also check how SPF and DMARC records are written and read the Authenticat
 
 - Paste SPF and DMARC records to see syntax errors and risky settings as errors, warnings and notes
 - SPF: position of `v=spf1`, duplicate records, unknown terms, address and range syntax, `+all` and `?all`, terms after `all`, `ptr`, the DNS lookup count (limit 10) and length over 255 characters
+- SPF ranges: `ip4:0.0.0.0/0` (the same as `+all`) is an error, and pass ranges wider than /16 for IPv4 or /32 for IPv6 are warnings. Duplicate terms are warnings too
+- You can paste `dig` output as is. The quoted strings are taken out, and a TXT record split every 255 characters (`"…" "…"`) is joined without spaces
 - DMARC: `v=DMARC1` first, values of `p=`, `sp=`, `adkim=`, `aspf=` and `pct=`, `mailto:` in `rua=` and `ruf=`, duplicate and unknown tags, `p=none` staying at monitoring, and a missing `rua=`
-- Samples of a good record and a record with problems
+- Three samples: a good record, a record with problems, and `dig` output (quoted and split)
 
 ### 📨 Header reader
 
@@ -243,6 +245,9 @@ Results of `lintSpf()` and `lintDmarc()` in `js/mailauth-tools.js`.
 | SPF | `v=spf1 +all` | `error` | Error: +all allows mail from any IP address. It cannot stop spoofing; do not use it. |
 | SPF | `v=spf1 include:_spf.example.net` | `warning` | Warning: There is neither all nor redirect=. Senders that match nothing get neutral.<br>Note: This record alone has 1 terms that need DNS lookups. Keep the total, including nested includes, within 10. |
 | SPF | `v=spf1 ip4:192.0.2.300 ptr -all ip4:198.51.100.0/24` | `error` | Error: The address or range is malformed: ip4:192.0.2.300<br>Warning: ptr should not be used (RFC 7208).<br>Warning: Terms after all are never evaluated: ip4:198.51.100.0/24<br>Note: This record alone has 1 terms that need DNS lookups. Keep the total, including nested includes, within 10.<br>Note: -all makes other senders fail. |
+| SPF | `example.com. 300 IN TXT "v=spf1 ip4:192.0.2.0/24 " "include:_spf.example.net -all"` | `ok` | Note: Quotes were removed and 2 strings were joined without spaces before checking (how a TXT record split every 255 characters is read).<br>Note: This record alone has 1 terms that need DNS lookups. Keep the total, including nested includes, within 10.<br>Note: -all makes other senders fail. |
+| SPF | `v=spf1 ip4:0.0.0.0/0 -all` | `error` | Error: ip4:0.0.0.0/0 allows every IP address. It is the same as +all and cannot stop spoofing.<br>Note: -all makes other senders fail. |
+| SPF | `v=spf1 ip4:192.0.0.0/8 mx mx -all` | `warning` | Warning: ip4:192.0.0.0/8 is too broad (wider than /16). List only the ranges of your sending servers.<br>Warning: The same term appears more than once: mx<br>Note: This record alone has 2 terms that need DNS lookups. Keep the total, including nested includes, within 10.<br>Note: -all makes other senders fail. |
 | DMARC | `v=DMARC1; p=reject; sp=reject; rua=mailto:dmarc@example.com` | `ok` | Note: p=reject asks receivers to reject failing mail. |
 | DMARC | `v=DMARC1; p=none` | `warning` | Warning: There is no rua= (where aggregate reports go). Reports help confirm legitimate senders.<br>Note: p=none only monitors. Check the aggregate reports, then move to quarantine and then reject.<br>Note: There is no sp=, so subdomains also use p=none. |
 | DMARC | `p=reject; v=DMARC1; adkim=x; rua=dmarc@example.com` | `error` | Error: v=DMARC1 must come first.<br>Error: Invalid adkim= value (use r or s): x<br>Error: The rua= destination must start with mailto: dmarc@example.com<br>Note: p=reject asks receivers to reject failing mail.<br>Note: There is no sp=, so subdomains also use p=reject. |

@@ -64,9 +64,40 @@ test('DMARC lint', () => {
   assert.ok(keys(T.lintDmarc('v=DMARC1; p=reject; rua=mailto:r@example.com; oops')).includes('syntax'));
 });
 
+test('quoted TXT data as dig prints it', () => {
+  const dig = 'example.com. 300 IN TXT "v=spf1 ip4:192.0.2.0/24 " "include:_spf.example.net -all"';
+  assert.equal(T.unquote(dig).text, 'v=spf1 ip4:192.0.2.0/24 include:_spf.example.net -all', 'strings join without spaces');
+  assert.deepEqual(T.unquote('"v=spf1 ip4:192.0.2.1" "-all"').text, 'v=spf1 ip4:192.0.2.1-all', 'no space is added');
+  assert.deepEqual(T.unquote('v=spf1 -all'), { text: 'v=spf1 -all', findings: [] });
+  const findings = T.lintSpf(dig);
+  assert.equal(T.worst(findings), 'ok');
+  assert.deepEqual(findings[0], { level: 'info', key: 'lint.quoted', values: { count: 2 } });
+  assert.deepEqual(keys(T.lintDmarc('_dmarc.example.com. 300 IN TXT "v=DMARC1; p=reject; rua=mailto:r@example.com"')), ['quoted', 'reject', 'noSp']);
+  // lines without quotes (such as dig's section headers) are dropped; two records stay two records
+  const two = [';; ANSWER SECTION:', 'example.com. 300 IN TXT "v=spf1 a -all"', 'example.com. 300 IN TXT "v=spf1 mx -all"'].join('\r\n');
+  assert.deepEqual(keys(T.lintSpf(two)), ['quoted', 'multiple']);
+  assert.deepEqual(keys(T.lintSpf('"v=spf1 -all')), ['unbalancedQuote', 'hardAll']);
+});
+
+test('SPF lint: ranges that allow too much and duplicate terms', () => {
+  assert.equal(levelOf(T.lintSpf('v=spf1 ip4:0.0.0.0/0 -all'), 'anyAddress'), 'error');
+  assert.equal(levelOf(T.lintSpf('v=spf1 ip6:::/0 -all'), 'anyAddress'), 'error');
+  assert.deepEqual(T.lintSpf('v=spf1 ip4:192.0.0.0/8 -all').find(f => f.key.endsWith('broadRange')).values,
+    { term: 'ip4:192.0.0.0/8', prefix: 16 });
+  assert.equal(levelOf(T.lintSpf('v=spf1 ip6:2001:db8::/16 -all'), 'broadRange'), 'warning');
+  for (const ok of ['v=spf1 ip4:198.51.0.0/16 ip6:2001:db8::/32 -all', 'v=spf1 -ip4:0.0.0.0/0 ~ip4:192.0.0.0/8 -all']) {
+    assert.ok(!keys(T.lintSpf(ok)).some(k => k === 'anyAddress' || k === 'broadRange'), ok);    // only pass ranges are risky
+  }
+  assert.deepEqual(T.lintSpf('v=spf1 ip4:192.0.2.1 +IP4:192.0.2.1 -all').find(f => f.key.endsWith('duplicateTerm')).values,
+    { term: '+IP4:192.0.2.1' });
+  assert.ok(!keys(T.lintSpf('v=spf1 ip4:192.0.2.1 -ip4:192.0.2.1 -all')).includes('duplicateTerm'), 'different qualifiers');
+  assert.deepEqual(keys(T.lintSpf('v=spf1 v=spf2 -all')).slice(0, 1), ['unknown']);
+});
+
 test('every finding key has a message in both languages', () => {
   const inputs = ['', 'x', 'v=spf1 -all v=spf1', 'v=spf1 foo ip4:1 include: ptr redirect=a redirect=b +all a', 'v=spf1 ?all', 'v=spf1 ~all',
-    'v=spf1 a', 'v=spf1 ' + 'a '.repeat(11) + '-all', 'v=spf1 ' + 'ip4:192.0.2.1 '.repeat(20) + '-all', 'v=spf1 -all redirect=a'];
+    'v=spf1 a', 'v=spf1 ' + 'a '.repeat(11) + '-all', 'v=spf1 ' + 'ip4:192.0.2.1 '.repeat(20) + '-all', 'v=spf1 -all redirect=a',
+    '"v=spf1 ip4:0.0.0.0/0 ip4:192.0.0.0/8 mx mx -all"', '"v=spf1 -all'];
   const dmarc = ['', 'x', 'p=none; v=DMARC1; p=reject; foo=1; sp=x; adkim=x; pct=50; rua=x', 'v=DMARC1; p=reject; pct=500', 'v=DMARC1', 'v=DMARC1; p=none'];
   const all = new Set([...inputs.flatMap(r => T.lintSpf(r)), ...dmarc.flatMap(r => T.lintDmarc(r))].map(f => f.key));
   assert.ok(all.size >= 30, String(all.size));
@@ -109,6 +140,7 @@ test('samples: expected findings and documentation-only names', () => {
   assert.equal(T.worst(T.lintDmarc(D.LINT_SAMPLES.good.dmarc)), 'ok');
   assert.equal(T.worst(T.lintSpf(D.LINT_SAMPLES.bad.spf)), 'error');
   assert.equal(T.worst(T.lintDmarc(D.LINT_SAMPLES.bad.dmarc)), 'error');
+  assert.deepEqual([D.LINT_SAMPLES.dig.spf, D.LINT_SAMPLES.dig.dmarc].map(r => keys(T.lintSpf(r).concat(T.lintDmarc(r)))[0]), ['quoted', 'quoted']);
   const [top, forged] = T.readHeaders(D.HEADER_SAMPLES.spoof);
   assert.deepEqual([top.authservId, top.dmarc.result, forged.authservId, forged.dmarc.result], ['mx.example.net', 'fail', 'mx.example.org', 'pass']);
   assert.equal(T.readHeaders(D.HEADER_SAMPLES.pass)[0].spf.aligned, true);

@@ -7,23 +7,46 @@ const MailAuthTools = (() => {
   const LOOKUP_LIMIT = 10;                  // RFC 7208 section 4.6.4
   const DMARC_TAGS = ['v', 'p', 'sp', 'adkim', 'aspf', 'pct', 'rua', 'ruf', 'fo', 'rf', 'ri', 'np', 'psd', 't'];
 
+  const BROAD_PREFIX = { 4: 16, 6: 32 };      // pass ranges wider than these are reported
+
   const finding = (level, key, values = {}) => ({ level, key, values });
+
+  // Accepts TXT data as printed by dig or a DNS console: "..." "..." strings on each line are joined
+  // without spaces (RFC 7208 section 3.3), lines without quotes are dropped, and lines are joined with a space.
+  function unquote(record) {
+    const lines = String(record || '').split(/\r?\n/);
+    if (!lines.some(l => l.includes('"'))) return { text: lines.join(' ').trim(), findings: [] };
+    let parts = 0, unbalanced = false;
+    const text = lines.filter(l => l.includes('"')).map(line => {
+      if (line.split('"').length % 2 === 0) {
+        unbalanced = true;
+        return line.split('"').join('').trim();
+      }
+      const strings = [...line.matchAll(/"([^"]*)"/g)].map(m => m[1]);
+      parts += strings.length;
+      return strings.join('');
+    }).join(' ').trim();
+    const findings = [];
+    if (unbalanced) findings.push(finding('warning', 'lint.unbalancedQuote'));
+    if (parts > 0) findings.push(finding('info', 'lint.quoted', { count: parts }));
+    return { text, findings };
+  }
 
   // ---------- SPF record ----------
   function lintSpf(record) {
-    const text = String(record || '').trim();
-    const out = [];
+    const { text, findings: out } = unquote(record);
     if (text === '') return [finding('error', 'lint.spf.empty')];
-    if ((text.match(/(^|\s)v=spf1(\s|$)/gi) || []).length > 1) out.push(finding('error', 'lint.spf.multiple'));
+    // Two records already give permerror; checking their terms together would only add noise
+    if ((text.match(/(^|\s)v=spf1(\s|$)/gi) || []).length > 1) return [...out, finding('error', 'lint.spf.multiple')];
     const terms = text.split(/\s+/);
     if (terms[0].toLowerCase() !== 'v=spf1') return [...out, finding('error', 'lint.spf.version')];
     let lookups = 0, allIndex = -1, allQualifier = null;
-    const modifiers = {};
+    const modifiers = {}, seen = new Set();
     terms.slice(1).forEach((term, i) => {
       const mod = /^([a-z][a-z0-9_.-]*)=(.*)$/i.exec(term);
       if (mod) {
         const name = mod[1].toLowerCase();
-        if (name === 'v') return;          // a second record is already reported above
+        if (name === 'v') return out.push(finding('error', 'lint.spf.unknown', { term }));   // a stray v=spf2 and so on
         modifiers[name] = (modifiers[name] || 0) + 1;
         if (modifiers[name] === 2 && ['redirect', 'exp'].includes(name)) out.push(finding('error', 'lint.spf.duplicateModifier', { name }));
         if (name === 'redirect') lookups += 1;
@@ -34,10 +57,18 @@ const MailAuthTools = (() => {
       const [rawName, value] = body.split(/:(.*)/s);
       const name = rawName.split('/')[0].toLowerCase();
       if (!KNOWN_MECHANISMS.includes(name)) return out.push(finding('error', 'lint.spf.unknown', { term }));
+      const normalized = qualifier + body.toLowerCase();
+      if (seen.has(normalized)) out.push(finding('warning', 'lint.spf.duplicateTerm', { term }));
+      seen.add(normalized);
       if (allIndex >= 0) out.push(finding('warning', 'lint.spf.afterAll', { term }));
       if (name === 'all') { allIndex = i; allQualifier = qualifier; return; }
       if (name === 'ip4' || name === 'ip6') {
-        if (!Core.parseNetwork(value, name === 'ip4' ? 4 : 6)) out.push(finding('error', 'lint.spf.badAddress', { term }));
+        const net = Core.parseNetwork(value, name === 'ip4' ? 4 : 6);
+        if (!net) out.push(finding('error', 'lint.spf.badAddress', { term }));
+        else if (qualifier === '+' && net.prefix === 0) out.push(finding('error', 'lint.spf.anyAddress', { term }));
+        else if (qualifier === '+' && net.prefix < BROAD_PREFIX[net.family]) {
+          out.push(finding('warning', 'lint.spf.broadRange', { term, prefix: BROAD_PREFIX[net.family] }));
+        }
         return;
       }
       lookups += 1;
@@ -58,9 +89,8 @@ const MailAuthTools = (() => {
 
   // ---------- DMARC record ----------
   function lintDmarc(record) {
-    const text = String(record || '').trim();
+    const { text, findings: out } = unquote(record);
     if (text === '') return [finding('error', 'lint.dmarc.empty')];
-    const out = [];
     const pairs = text.split(';').map(s => s.trim()).filter(Boolean);
     const tags = {};
     pairs.forEach((pair, i) => {
@@ -169,7 +199,8 @@ const MailAuthTools = (() => {
     return extractAuthResults(headers).map(v => explain(parseAuthResults(v)));
   }
 
-  return { LOOKUP_LIMIT, lintSpf, lintDmarc, worst, extractAuthResults, stripComments, parseAuthResults, domainOf, explain, readHeaders };
+  return { LOOKUP_LIMIT, BROAD_PREFIX, unquote, lintSpf, lintDmarc, worst,
+    extractAuthResults, stripComments, parseAuthResults, domainOf, explain, readHeaders };
 })();
 
 if (typeof module !== 'undefined' && module.exports) module.exports = MailAuthTools;

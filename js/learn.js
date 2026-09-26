@@ -1,249 +1,113 @@
-document.addEventListener("DOMContentLoaded", () => {
-  const learnSection = document.getElementById("learn");
-
-  // 既存のトピックカードを先に追加
-  const topics = [
-    {
-      id: "spf",
-      title: "SPF（Sender Policy Framework）",
-      icon: "🔹",
-      analogy: "📦 配達員の所属確認",
-      description: "送信元IPアドレスが正当かどうかを検証する仕組み",
-      technical: "ドメインのDNSに「このドメインから送信してよいIPアドレス」を登録。受信者は送信ドメインのDNSレコードを参照し、実際の送信IPと一致するかをチェックします。",
-      example: "配達員が正しい建物から来ているか確認するようなもの"
-    },
-    {
-      id: "dkim",
-      title: "DKIM（DomainKeys Identified Mail）",
-      icon: "🔸",
-      analogy: "✍️ 封印とサイン",
-      description: "メールが改ざんされていないことを保証する技術",
-      technical: "送信者が電子署名をメールに付与。公開鍵はDNSに登録され、受信者側が署名を検証してメール本文やヘッダの改ざんを検出します。",
-      example: "封筒に送り主のハンコが押してあり、中身がそのままと確認できるようなもの"
-    },
-    {
-      id: "dmarc",
-      title: "DMARC（Domain-based Message Authentication）",
-      icon: "🔺",
-      analogy: "🧑‍⚖️ ルールに基づく判断",
-      description: "SPF/DKIMの結果に基づいて処理方針を決める仕組み",
-      technical: "SPFとDKIMの検証結果に基づいて、受信者がどう処理すべきか（受信・隔離・拒否）をポリシーで指定。結果のレポートを送信者に返すことも可能です。",
-      example: "マンションの管理人がルール表にしたがって配達を許可するか判断するようなもの"
-    }
+// Learn tab: topic cards and the step-by-step authentication flow.
+document.addEventListener('DOMContentLoaded', () => {
+  const TOPICS = [
+    { id: 'spf', icon: '🔹' },
+    { id: 'dkim', icon: '🔸' },
+    { id: 'dmarc', icon: '🔺' },
+    { id: 'align', icon: '🪪' }
   ];
+  const FLOW = [
+    { step: 1, icon: '📮' },
+    { step: 2, icon: '🌐', badge: 'SPF', badgeClass: 'spf-check' },
+    { step: 3, icon: '🔐', badge: 'DKIM', badgeClass: 'dkim-check' },
+    { step: 4, icon: '📋', badge: 'DMARC', badgeClass: 'dmarc-check' },
+    { step: 5, icon: '📨' }
+  ];
+  const STEP_DELAY_MS = 1500;
+  const cards = document.getElementById('learn-cards');
+  const diagram = document.getElementById('flow-diagram');
+  const explanation = document.getElementById('step-explanation');
+  const playBtn = document.getElementById('play-animation');
+  const resetBtn = document.getElementById('reset-animation');
+  const state = { selected: null, animated: 0, playing: false, timer: null };
 
-  const container = document.createElement("div");
-  container.className = "learn-cards";
+  function el(tag, className, text) {
+    const node = document.createElement(tag);
+    if (className) node.className = className;
+    if (text !== undefined) node.textContent = text;
+    return node;
+  }
 
-  topics.forEach(topic => {
-    const card = document.createElement("div");
-    card.className = "learn-card";
-    card.innerHTML = `
-      <div class="card-header">
-        <span class="card-icon">${topic.icon}</span>
-        <h3>${topic.title}</h3>
-      </div>
-      <div class="card-analogy">
-        <span class="analogy-icon">${topic.analogy}</span>
-      </div>
-      <div class="card-content">
-        <p class="card-description">${topic.description}</p>
-        <div class="card-details">
-          <h4>技術的な詳細</h4>
-          <p>${topic.technical}</p>
-        </div>
-        <div class="card-example">
-          <span class="example-label">💡 たとえ</span>
-          <p>${topic.example}</p>
-        </div>
-      </div>
-    `;
-    container.appendChild(card);
-  });
+  function renderCards() {
+    cards.replaceChildren(...TOPICS.map(topic => {
+      const card = el('article', 'learn-card');
+      const header = el('div', 'card-header');
+      header.append(el('span', 'card-icon', topic.icon), el('h3', '', I18n.t(`card.${topic.id}.title`)));
+      const analogy = el('div', 'card-analogy');
+      analogy.append(el('span', 'analogy-icon', I18n.t(`card.${topic.id}.analogy`)));
+      const content = el('div', 'card-content');
+      const details = el('div', 'card-details');
+      details.append(el('h4', '', I18n.t('card.techHeading')), el('p', '', I18n.t(`card.${topic.id}.technical`)));
+      const example = el('div', 'card-example');
+      example.append(el('span', 'example-label', I18n.t('card.exampleLabel')), el('p', '', I18n.t(`card.${topic.id}.example`)));
+      content.append(el('p', 'card-description', I18n.t(`card.${topic.id}.description`)), details, example);
+      card.append(header, analogy, content);
+      return card;
+    }));
+  }
 
-  learnSection.appendChild(container);
-
-  // メール認証の流れセクションを追加
-  const flowSection = document.createElement("div");
-  flowSection.className = "flow-section";
-  flowSection.innerHTML = `
-    <h2>📧 メール認証の流れ</h2>
-    <p>実際のメール送信から受信までの認証プロセスを視覚的に理解しましょう。</p>
-  `;
-  learnSection.appendChild(flowSection);
-
-  // インタラクティブなフロー図を作成（カードの後に配置）
-  const flowContainer = document.createElement("div");
-  flowContainer.className = "flow-container";
-  flowContainer.innerHTML = `
-    <div class="flow-diagram">
-      <div class="flow-step" data-step="1">
-        <div class="step-icon">📮</div>
-        <div class="step-label">送信者</div>
-        <div class="step-detail">example@sender.com</div>
-      </div>
-      
-      <div class="flow-arrow">→</div>
-      
-      <div class="flow-step" data-step="2">
-        <div class="step-icon">🌐</div>
-        <div class="step-label">DNS照会</div>
-        <div class="step-detail">SPFレコード確認</div>
-        <div class="check-badge spf-check">SPF</div>
-      </div>
-      
-      <div class="flow-arrow">→</div>
-      
-      <div class="flow-step" data-step="3">
-        <div class="step-icon">🔐</div>
-        <div class="step-label">署名検証</div>
-        <div class="step-detail">DKIM署名確認</div>
-        <div class="check-badge dkim-check">DKIM</div>
-      </div>
-      
-      <div class="flow-arrow">→</div>
-      
-      <div class="flow-step" data-step="4">
-        <div class="step-icon">📋</div>
-        <div class="step-label">ポリシー適用</div>
-        <div class="step-detail">DMARC判定</div>
-        <div class="check-badge dmarc-check">DMARC</div>
-      </div>
-      
-      <div class="flow-arrow">→</div>
-      
-      <div class="flow-step" data-step="5">
-        <div class="step-icon">📨</div>
-        <div class="step-label">受信者</div>
-        <div class="step-detail">recipient@example.com</div>
-      </div>
-    </div>
-    
-    <div class="flow-controls">
-      <button id="play-animation" class="control-btn">▶ アニメーション再生</button>
-      <button id="reset-animation" class="control-btn">↻ リセット</button>
-    </div>
-    
-    <div id="step-explanation" class="step-explanation"></div>
-  `;
-
-  learnSection.appendChild(flowContainer);
-
-  // ステップごとの詳細説明
-  const stepExplanations = {
-    1: {
-      title: "メール送信",
-      content: "送信者がメールを作成し、送信サーバーを通じてメールを送信します。"
-    },
-    2: {
-      title: "SPF認証",
-      content: "受信サーバーは送信元ドメインのDNSに登録されたSPFレコードを確認し、送信元IPアドレスが許可されているか検証します。"
-    },
-    3: {
-      title: "DKIM認証",
-      content: "メールに付与されたデジタル署名を、DNSに公開された公開鍵を使って検証し、メールの改ざんがないか確認します。"
-    },
-    4: {
-      title: "DMARC判定",
-      content: "SPFとDKIMの結果を総合的に判断し、送信者が設定したDMARCポリシーに従って、メールを受信・隔離・拒否のいずれかに処理します。"
-    },
-    5: {
-      title: "メール配送",
-      content: "すべての認証をパスしたメールは、受信者のメールボックスに配送されます。"
-    }
-  };
-
-  // クリックイベントの設定
-  const flowSteps = document.querySelectorAll(".flow-step");
-  const explanationDiv = document.getElementById("step-explanation");
-
-  flowSteps.forEach(step => {
-    step.addEventListener("click", () => {
-      const stepNum = step.dataset.step;
-      const explanation = stepExplanations[stepNum];
-      
-      // すべてのステップからactiveクラスを削除
-      flowSteps.forEach(s => s.classList.remove("active"));
-      // クリックしたステップにactiveクラスを追加
-      step.classList.add("active");
-      
-      // 説明を表示
-      explanationDiv.innerHTML = `
-        <h4>${explanation.title}</h4>
-        <p>${explanation.content}</p>
-      `;
-      explanationDiv.classList.add("show");
+  // The flow is drawn only from `state`, so language changes keep the progress.
+  function renderFlow() {
+    const nodes = [];
+    FLOW.forEach((item, i) => {
+      if (i > 0) nodes.push(el('div', 'flow-arrow', '→'));
+      const btn = el('button', 'flow-step');
+      btn.type = 'button';
+      btn.dataset.step = String(item.step);
+      btn.classList.toggle('animated', i < state.animated);
+      btn.classList.toggle('active', state.selected === item.step);
+      btn.setAttribute('aria-pressed', String(state.selected === item.step));
+      btn.append(el('span', 'step-icon', item.icon), el('span', 'step-label', I18n.t(`flow.${item.step}.label`)),
+        el('span', 'step-detail', I18n.t(`flow.${item.step}.detail`)));
+      if (item.badge) btn.append(el('span', `check-badge ${item.badgeClass}`, item.badge));
+      btn.addEventListener('click', () => { stop(); state.selected = item.step; render(); });
+      nodes.push(btn);
     });
-  });
-
-  // アニメーション機能
-  const playBtn = document.getElementById("play-animation");
-  const resetBtn = document.getElementById("reset-animation");
-  let animationTimeout = null;
-  let isPlaying = false;
-
-  playBtn.addEventListener("click", () => {
-    if (isPlaying) {
-      // 停止処理
-      stopAnimation();
-    } else {
-      // 再生処理
-      startAnimation();
+    diagram.replaceChildren(...nodes);
+    explanation.replaceChildren();
+    explanation.classList.toggle('show', state.selected !== null);
+    if (state.selected !== null) {
+      explanation.append(el('h4', '', I18n.t(`flow.${state.selected}.title`)), el('p', '', I18n.t(`flow.${state.selected}.content`)));
     }
+    playBtn.textContent = I18n.t(state.playing ? 'flow.stop' : 'flow.play');
+    playBtn.classList.toggle('playing', state.playing);
+  }
+
+  function render() {
+    renderCards();
+    renderFlow();
+  }
+
+  function stop() {
+    state.playing = false;
+    clearTimeout(state.timer);
+    state.timer = null;
+  }
+
+  function tick() {
+    if (!state.playing) return;
+    state.animated += 1;
+    state.selected = state.animated;
+    if (state.animated >= FLOW.length) state.playing = false;
+    renderFlow();
+    if (state.playing) state.timer = setTimeout(tick, STEP_DELAY_MS);
+  }
+
+  playBtn.addEventListener('click', () => {
+    if (state.playing) { stop(); renderFlow(); return; }
+    stop();
+    state.animated = 0;
+    state.selected = null;
+    state.playing = true;
+    tick();
+  });
+  resetBtn.addEventListener('click', () => {
+    stop();
+    state.animated = 0;
+    state.selected = null;
+    renderFlow();
   });
 
-  function startAnimation() {
-    resetAnimation();
-    isPlaying = true;
-    playBtn.textContent = "■ 停止";
-    playBtn.classList.add("playing");
-    
-    let currentStep = 0;
-    
-    const animateStep = () => {
-      if (currentStep < flowSteps.length && isPlaying) {
-        flowSteps[currentStep].classList.add("animated");
-        
-        // 対応する説明も表示
-        const stepNum = flowSteps[currentStep].dataset.step;
-        const explanation = stepExplanations[stepNum];
-        explanationDiv.innerHTML = `
-          <h4>${explanation.title}</h4>
-          <p>${explanation.content}</p>
-        `;
-        explanationDiv.classList.add("show");
-        
-        currentStep++;
-        animationTimeout = setTimeout(animateStep, 1500);
-      } else {
-        // アニメーション完了
-        stopAnimation();
-      }
-    };
-    
-    animateStep();
-  }
-
-  function stopAnimation() {
-    isPlaying = false;
-    if (animationTimeout) {
-      clearTimeout(animationTimeout);
-      animationTimeout = null;
-    }
-    playBtn.textContent = "▶ アニメーション再生";
-    playBtn.classList.remove("playing");
-  }
-
-  resetBtn.addEventListener("click", () => {
-    stopAnimation();
-    resetAnimation();
-  });
-
-  function resetAnimation() {
-    flowSteps.forEach(step => {
-      step.classList.remove("animated", "active");
-    });
-    explanationDiv.classList.remove("show");
-    explanationDiv.innerHTML = "";
-  }
+  document.addEventListener('languagechange', render);
+  render();
 });

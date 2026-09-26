@@ -46,7 +46,50 @@ const MailAuthData = (() => {
       spfRecord: OWN_SPF, dkimResult: 'fail', dkimDomain: 'example.com', dmarcRecord: 'v=DMARC1; p=reject' } }
   ];
 
-  return { SCENARIOS, QUESTIONS };
+  // Record checker samples (Record checker tab)
+  const LINT_SAMPLES = {
+    good: { spf: 'v=spf1 ip4:192.0.2.0/24 include:_spf.example.net -all',
+      dmarc: 'v=DMARC1; p=reject; sp=reject; adkim=r; aspf=r; rua=mailto:dmarc-reports@example.com' },
+    bad: { spf: 'v=spf1 ip4:192.0.2.300 ptr mx include: +all ip4:198.51.100.0/24',
+      dmarc: 'p=monitor; v=DMARC1; adkim=x; pct=50; rua=dmarc@example.com' }
+  };
+
+  // Header reader samples. In "spoof" the lower header was written by the sender, not by the receiver.
+  const HEADER_SAMPLES = {
+    pass: [
+      'Authentication-Results: mx.example.net;',
+      ' spf=pass (sender IP is 192.0.2.1) smtp.mailfrom=bounce.example.com;',
+      ' dkim=pass header.d=example.com header.s=sel1;',
+      ' dmarc=pass (p=reject) header.from=example.com',
+      'Received: from mail.example.com (mail.example.com [192.0.2.1]) by mx.example.net',
+      'From: Example Shop <info@example.com>',
+      'Subject: Your order'
+    ].join('\n'),
+    spoof: [
+      'Authentication-Results: mx.example.net;',
+      ' spf=fail (sender IP is 203.0.113.5) smtp.mailfrom=example.com;',
+      ' dkim=none;',
+      ' dmarc=fail (p=reject) header.from=example.com',
+      'Received: from unknown ([203.0.113.5]) by mx.example.net',
+      'Authentication-Results: mx.example.org;',
+      ' spf=pass smtp.mailfrom=example.com; dkim=pass header.d=example.com;',
+      ' dmarc=pass header.from=example.com',
+      'From: Example Bank <support@example.com>',
+      'Subject: Please confirm your account'
+    ].join('\n'),
+    forward: [
+      'Authentication-Results: mx.example.net;',
+      ' spf=softfail (198.51.100.20 is not permitted) smtp.mailfrom=example.com;',
+      ' dkim=pass header.d=example.com header.s=sel1;',
+      ' arc=pass;',
+      ' dmarc=pass (p=quarantine) header.from=example.com',
+      'Received: from relay.example.org ([198.51.100.20]) by mx.example.net',
+      'From: Example News <news@example.com>',
+      'Subject: Weekly newsletter'
+    ].join('\n')
+  };
+
+  return { SCENARIOS, QUESTIONS, LINT_SAMPLES, HEADER_SAMPLES };
 })();
 
 if (typeof module !== 'undefined' && module.exports) module.exports = MailAuthData;

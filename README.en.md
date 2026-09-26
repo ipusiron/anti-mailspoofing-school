@@ -430,7 +430,7 @@ MIT License - see [LICENSE](LICENSE) for details.
 
 ## 🛠️ About This Tool
 
-This tool was developed as part of the "100 Security Tools with Generative AI" project. The project builds and publishes a security-related tool every day for 100 days with the help of AI.
+This tool was developed as part of the "100 Security Tools with Generative AI" project. In this project, a variety of security-related tools are built with the help of AI and published over 100 days.
 
 For details of the project and the other tools, see the page below.
 

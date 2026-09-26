@@ -1,56 +1,67 @@
-document.addEventListener("DOMContentLoaded", () => {
-  const tabButtons = document.querySelectorAll(".tab-button");
-  const tabContents = document.querySelectorAll(".tab-content");
+// Tabs, help dialog and language switching.
+document.addEventListener('DOMContentLoaded', () => {
+  I18n.init();
 
-  tabButtons.forEach((button) => {
-    button.addEventListener("click", () => {
-      const targetId = button.getAttribute("data-tab");
+  // ---------- Tabs (WAI-ARIA tabs pattern) ----------
+  const tabs = [...document.querySelectorAll('.tab-button')];
 
-      // ボタンの active クラスを更新
-      tabButtons.forEach((btn) => btn.classList.remove("active"));
-      button.classList.add("active");
+  function activateTab(tab, focus) {
+    tabs.forEach(btn => {
+      const selected = btn === tab;
+      btn.classList.toggle('active', selected);
+      btn.setAttribute('aria-selected', String(selected));
+      btn.tabIndex = selected ? 0 : -1;
+      const panel = document.getElementById(btn.dataset.tab);
+      panel.classList.toggle('active', selected);
+      panel.hidden = !selected;
+    });
+    if (focus) tab.focus();
+  }
 
-      // コンテンツの表示切り替え
-      tabContents.forEach((content) => {
-        if (content.id === targetId) {
-          content.classList.add("active");
-        } else {
-          content.classList.remove("active");
-        }
-      });
+  tabs.forEach((tab, index) => {
+    tab.addEventListener('click', () => activateTab(tab, false));
+    tab.addEventListener('keydown', event => {
+      const keys = { ArrowRight: index + 1, ArrowLeft: index - 1, Home: 0, End: tabs.length - 1 };
+      if (!(event.key in keys)) return;
+      event.preventDefault();
+      activateTab(tabs[(keys[event.key] + tabs.length) % tabs.length], true);
     });
   });
 
-  // ヘルプモーダルの機能
-  const helpButton = document.getElementById("help-button");
-  const helpModal = document.getElementById("help-modal");
-  const helpClose = document.getElementById("help-close");
+  // ---------- Help dialog ----------
+  const helpButton = document.getElementById('help-button');
+  const helpModal = document.getElementById('help-modal');
+  const helpBody = document.getElementById('help-body');
 
-  // ヘルプボタンクリックでモーダル表示
-  helpButton.addEventListener("click", () => {
-    helpModal.classList.add("show");
-    document.body.style.overflow = "hidden"; // 背景のスクロール無効化
-  });
-
-  // 閉じるボタンクリックでモーダル非表示
-  helpClose.addEventListener("click", () => {
-    helpModal.classList.remove("show");
-    document.body.style.overflow = ""; // スクロール有効化
-  });
-
-  // モーダル背景クリックで閉じる
-  helpModal.addEventListener("click", (e) => {
-    if (e.target === helpModal) {
-      helpModal.classList.remove("show");
-      document.body.style.overflow = "";
+  function renderHelp() {
+    helpBody.replaceChildren();
+    for (const n of [1, 2, 3, 4, 5]) {
+      const section = document.createElement('div');
+      section.className = 'help-section';
+      const heading = document.createElement('h3');
+      heading.textContent = I18n.t(`help.s${n}.h`);
+      const text = document.createElement('p');
+      text.textContent = I18n.t(`help.s${n}.p`);
+      section.append(heading, text);
+      helpBody.append(section);
     }
-  });
+  }
 
-  // ESCキーでモーダルを閉じる
-  document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape" && helpModal.classList.contains("show")) {
-      helpModal.classList.remove("show");
-      document.body.style.overflow = "";
-    }
+  helpButton.addEventListener('click', () => {
+    renderHelp();
+    helpModal.showModal();
+  });
+  document.getElementById('help-close').addEventListener('click', () => helpModal.close());
+  helpModal.addEventListener('click', event => {
+    if (event.target === helpModal) helpModal.close();
+  });
+  helpModal.addEventListener('close', () => helpButton.focus());
+
+  // ---------- Language ----------
+  document.getElementById('lang-button').addEventListener('click', () => {
+    I18n.setLanguage(I18n.language === 'ja' ? 'en' : 'ja');
+  });
+  document.addEventListener('languagechange', () => {
+    if (helpModal.open) renderHelp();
   });
 });

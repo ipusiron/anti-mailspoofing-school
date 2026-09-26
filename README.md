@@ -49,6 +49,8 @@ hub: true
 
 1通のメールの条件を入れると、受信サーバーが SPF → DKIM → アラインメント → DMARC の順にどう判定するかを表示します。判定はすべてブラウザーの中で行い、メールの送信や DNS への問い合わせはしません。
 
+SPF・DMARC レコードの書き方の診断と、受信したメールの Authentication-Results ヘッダーの読み解きもできます。
+
 ---
 
 ## 🌐 デモページ
@@ -70,6 +72,14 @@ hub: true
 > ![英語表示のシミュレーション。外部の配信サービスでも DKIM がそろえば DMARC は pass](assets/en/screenshot.png)
 >
 > *英語表示: 外部の配信サービスでも、DKIM がそろえば DMARC は pass*
+
+> ![レコード診断で、問題の多い SPF と DMARC のレコードの誤り・注意・参考を一覧にした画面](assets/screenshot3.png)
+>
+> *レコード診断: 問題の多いレコードの誤り・注意・参考を一覧にする*
+
+> ![英語表示のヘッダー解読。Authentication-Results が2つあり、下の偽のヘッダーは pass と書いている](assets/en/screenshot2.png)
+>
+> *英語表示のヘッダー解読: 下の偽のヘッダーは pass と書いているが、信頼できるのは自分の受信サーバーが付けた上のものだけ*
 
 ---
 
@@ -95,6 +105,20 @@ hub: true
 - 解放済みの最高レベルで3回続けて正解すると、次のレベルへ進める。同じ問題は続けて出ない
 - 正誤にかかわらず解説を表示する
 
+### 🩺 レコード診断
+
+- SPF と DMARC のレコードを貼ると、書き方の誤りと危険な設定を「誤り・注意・参考」の3段階で示す
+- SPF: `v=spf1` の位置、レコードの重複、知らない項目、IP アドレスと範囲の書き方、`+all`・`?all`、`all` のあとの項目、`ptr`、DNS の問い合わせ回数（上限10回）、255文字を超える長さ
+- DMARC: `v=DMARC1` が最初にあるか、`p=`・`sp=`・`adkim=`・`aspf=`・`pct=` の値、`rua=`・`ruf=` が `mailto:` で始まるか、タグの重複と知らないタグ、`p=none` の監視止まり、`rua=` がないこと
+- 良い例と問題の多い例のサンプルつき
+
+### 📨 ヘッダー解読
+
+- 受信したメールのヘッダーを貼ると、`Authentication-Results` の spf・dkim・dmarc の結果を読み解く
+- 折り返した行とかっこのコメントを処理し、SPF の `smtp.mailfrom`・DKIM の `header.d` と `header.from` がそろっているか（relaxed）を示す
+- `Authentication-Results` が2つ以上あると、信頼できるのは自分の受信サーバーが付けたもの（ふつうはいちばん上）だけだと警告する
+- サンプル3件: すべて合格、なりすまし（偽のヘッダーつき）、転送
+
 ### 🌏 日英表示・ヘルプ
 
 - 右上のボタンで日本語と英語を切り替える（URL の `?lang=ja|en` でも指定できる）
@@ -107,6 +131,8 @@ hub: true
 1. **📘 学習モード**で、4枚のカードと認証の流れを読む
 2. **🧪 シミュレーション**で、プリセットを順に判定して結果の違いを確かめる。値を書き換えて自分の条件でも試す
 3. **🎯 チャレンジ**で、認証ログから処理を当てる。解説を読みながら上級まで進める
+4. **🩺 レコード診断**で、自分のドメインの SPF・DMARC レコード（DNS の TXT レコードの値）を貼って確かめる
+5. **📨 ヘッダー解読**で、受信したメールのヘッダー（メールソフトの「ソースを表示」など）を貼って結果を読む
 
 ファイルを直接開いても（file://）、Web サーバー経由でも動きます。
 
@@ -241,12 +267,40 @@ hub: true
 | サブドメインのポリシー (`subdomain`) | `news.example.com` | `news.example.com` | `203.0.113.9` | `fail` | `fail (d=news.example.com)` | `v=DMARC1; p=reject; sp=quarantine` | `fail` | `quarantine` |
 | IP の部分一致に注意 (`substring`) | `example.com` | `example.com` | `192.0.2.1` | `fail` | `none` | `v=DMARC1; p=quarantine` | `fail` | `quarantine` |
 
+### レコード診断の既知解答
+
+`js/mailauth-tools.js` の `lintSpf()`・`lintDmarc()` の結果です。
+
+| 種類 | レコード | 判定 | 指摘 |
+| --- | --- | --- | --- |
+| SPF | `v=spf1 ip4:192.0.2.0/24 include:_spf.example.net -all` | `ok` | 参考: DNS の問い合わせが要る項目はこのレコードだけで 1 個です。include 先の分も合わせて 10 回までに収めます。<br>参考: -all で、ほかの送信元を fail にしています。 |
+| SPF | `v=spf1 ip4:192.0.2.0/24 ~all` | `ok` | 参考: ~all は、ほかの送信元を softfail にします。DMARC では合格に数えません。 |
+| SPF | `v=spf1 +all` | `error` | 誤り: +all は、どの IP からの送信も許可します。なりすましを防げないので使いません。 |
+| SPF | `v=spf1 include:_spf.example.net` | `warning` | 注意: all も redirect= もありません。どれにも一致しない送信元は neutral になります。<br>参考: DNS の問い合わせが要る項目はこのレコードだけで 1 個です。include 先の分も合わせて 10 回までに収めます。 |
+| SPF | `v=spf1 ip4:192.0.2.300 ptr -all ip4:198.51.100.0/24` | `error` | 誤り: IP アドレスや範囲の書き方が正しくありません: ip4:192.0.2.300<br>注意: ptr は使わないことが推奨されています（RFC 7208）。<br>注意: all のあとの項目は評価されません: ip4:198.51.100.0/24<br>参考: DNS の問い合わせが要る項目はこのレコードだけで 1 個です。include 先の分も合わせて 10 回までに収めます。<br>参考: -all で、ほかの送信元を fail にしています。 |
+| DMARC | `v=DMARC1; p=reject; sp=reject; rua=mailto:dmarc@example.com` | `ok` | 参考: p=reject で、失敗したメールの拒否を求めています。 |
+| DMARC | `v=DMARC1; p=none` | `warning` | 注意: rua=（集計レポートの送り先）がありません。正当な送信元の確認に役立ちます。<br>参考: p=none は監視だけです。集計レポートで確かめてから quarantine、reject へ強めます。<br>参考: sp= がないので、サブドメインにも p=none が使われます。 |
+| DMARC | `p=reject; v=DMARC1; adkim=x; rua=dmarc@example.com` | `error` | 誤り: v=DMARC1 を最初に書く必要があります。<br>誤り: adkim= の値が正しくありません（r か s）: x<br>誤り: rua= の送り先は mailto: で始めます: dmarc@example.com<br>参考: p=reject で、失敗したメールの拒否を求めています。<br>参考: sp= がないので、サブドメインにも p=reject が使われます。 |
+
+### ヘッダー解読の既知解答
+
+ヘッダー解読のサンプルを `readHeaders()` で読んだ結果です。✓ は From とそろう、✗ はそろわない、— は合格でないので見ていないことを表します。
+
+| サンプル | 順番 | 付けたサーバー | SPF | DKIM | DMARC |
+| --- | --- | --- | --- | --- | --- |
+| すべて合格 (`pass`) | 1 | `mx.example.net` | `pass` bounce.example.com ✓ | `pass` example.com ✓ | `pass` |
+| なりすまし (`spoof`) | 1 | `mx.example.net` | `fail` example.com — | `none` — | `fail` |
+| なりすまし (`spoof`) | 2 | `mx.example.org` | `pass` example.com ✓ | `pass` example.com ✓ | `pass` |
+| 転送 (`forward`) | 1 | `mx.example.net` | `softfail` example.com — | `pass` example.com ✓ | `pass` |
+
 ### 簡略化していること
 
 - SPF の `include`・`a`・`mx`・`exists`・`ptr`・`redirect=` は DNS の問い合わせが要るので評価せず、「評価しなかった項目」として表示する
 - 組織ドメインは短い一覧で求める（実際の受信サーバーは Public Suffix List を使う）
 - DKIM は結果（pass・fail・none）と署名のドメインを選ぶ形で、署名の計算はしない
 - DMARC の `pct=` と、受信側の独自の方針（ローカルポリシー）は扱わない
+- レコード診断は `include` 先のレコードを引かないので、DNS の問い合わせ回数は貼ったレコードの中だけで数える
+- ヘッダー解読は、ヘッダーが本物かどうかを確かめられない。アラインメントは relaxed だけで示す
 
 ---
 
@@ -318,6 +372,7 @@ _dmarc.example.com. IN TXT "v=DMARC1; p=quarantine; sp=reject; adkim=r; aspf=r; 
 - メールの送信・DNS への問い合わせ・外部への通信はしない（CSP の `default-src 'none'`）
 - CSP は `script-src 'self'`・`style-src 'self'` で、インラインのスクリプトとスタイルを使わない
 - 入力は DOM の `textContent` で表示し、HTML として解釈しない
+- 貼ったレコードとヘッダーはブラウザーの中だけで処理し、保存も送信もしない
 - localStorage に保存するのは表示言語だけ（使えない環境でも動く）
 
 ---
@@ -334,6 +389,7 @@ npm test
 - `test/data.test.js`: プリセットと12問の判定（正解はコードで計算）、例示用のドメインとアドレスだけを使っていること、チャレンジの進み方
 - `test/html.test.js`: CSP・ARIA・禁止する書き方（innerHTML・インラインのハンドラーなど）
 - `test/i18n.test.js`: 日英の辞書のキーの一致、英語に日本語が残らないこと
+- `test/tools.test.js`: レコード診断の指摘、DNS の問い合わせ回数、ヘッダーの読み解きとアラインメント、すべての指摘に日英の文があること
 - `test/contrast.test.js`: 配色のコントラスト比
 - `test/format.test.js`: 行の長さと行数
 - `test/readme.test.js`: この README と README.en.md の表の値、構成、画像
@@ -344,40 +400,46 @@ npm test
 
 ```
 anti-mailspoofing-school/
-├── .github/                # GitHub の設定
-│   └── workflows/          # GitHub Actions のワークフロー
-│       └── test.yml        # push と pull_request で npm test を実行する
-├── assets/                 # 画像
-│   ├── en/                 # 英語の画面のスクリーンショット
-│   │   └── screenshot.png  # 英語のシミュレーション（外部の配信サービス）
-│   ├── screenshot.png      # シミュレーション（別ドメインで SPF 合格→拒否）
-│   └── screenshot2.png     # チャレンジの解答後
-├── js/                     # スクリプト（classic script）
-│   ├── challenge-logic.js  # チャレンジの進み方の規則（DOM を使わない）
-│   ├── challenge.js        # チャレンジの画面
-│   ├── i18n.js             # 日英の辞書と言語の切り替え
-│   ├── learn.js            # 学習モードの画面
-│   ├── mailauth-core.js    # SPF・アラインメント・DMARC の判定（DOM を使わない）
-│   ├── mailauth-data.js    # プリセット10件と問題12問のデータ
-│   ├── main.js             # タブ・ヘルプ・言語の切り替え
-│   └── simulate.js         # シミュレーションの画面
-├── test/                   # 自動テスト（node --test）
-│   ├── contrast.test.js    # 配色のコントラスト比
-│   ├── core.test.js        # 判定の処理
-│   ├── data.test.js        # プリセット・問題・チャレンジの進み方
-│   ├── format.test.js      # 行の長さと行数
-│   ├── html.test.js        # CSP・ARIA・禁止する書き方
-│   ├── i18n.test.js        # 日英の辞書
-│   └── readme.test.js      # README の表・構成・画像
-├── .gitignore              # Git の管理から外すファイル
-├── .nojekyll               # GitHub Pages で Jekyll を使わない
-├── CLAUDE.md               # Claude Code 向けの説明（英語）
-├── LICENSE                 # MIT ライセンス
-├── README.en.md            # 英語の説明
-├── README.md               # 日本語の説明
-├── index.html              # 3タブの画面
-├── package.json            # npm test の設定（依存なし）
-└── style.css               # スタイル
+├── .github/                 # GitHub の設定
+│   └── workflows/           # GitHub Actions のワークフロー
+│       └── test.yml         # push と pull_request で npm test を実行する
+├── assets/                  # 画像
+│   ├── en/                  # 英語の画面のスクリーンショット
+│   │   ├── screenshot.png   # 英語のシミュレーション（外部の配信サービス）
+│   │   └── screenshot2.png  # 英語のヘッダー解読（偽のヘッダーつき）
+│   ├── screenshot.png       # シミュレーション（別ドメインで SPF 合格→拒否）
+│   ├── screenshot2.png      # チャレンジの解答後
+│   └── screenshot3.png      # レコード診断（問題の多い例）
+├── js/                      # スクリプト（classic script）
+│   ├── challenge-logic.js   # チャレンジの進み方の規則（DOM を使わない）
+│   ├── challenge.js         # チャレンジの画面
+│   ├── checker.js           # レコード診断の画面
+│   ├── headers.js           # ヘッダー解読の画面
+│   ├── i18n.js              # 日英の辞書と言語の切り替え
+│   ├── learn.js             # 学習モードの画面
+│   ├── mailauth-core.js     # SPF・アラインメント・DMARC の判定（DOM を使わない）
+│   ├── mailauth-data.js     # プリセット10件・問題12問・サンプルのデータ
+│   ├── mailauth-tools.js    # レコードの文法チェックとヘッダーの読み解き（DOM を使わない）
+│   ├── main.js              # タブ・ヘルプ・言語の切り替え
+│   └── simulate.js          # シミュレーションの画面
+├── test/                    # 自動テスト（node --test）
+│   ├── contrast.test.js     # 配色のコントラスト比
+│   ├── core.test.js         # 判定の処理
+│   ├── data.test.js         # プリセット・問題・チャレンジの進み方
+│   ├── format.test.js       # 行の長さと行数
+│   ├── html.test.js         # CSP・ARIA・禁止する書き方
+│   ├── i18n.test.js         # 日英の辞書
+│   ├── readme.test.js       # README の表・構成・画像
+│   └── tools.test.js        # レコード診断とヘッダー解読
+├── .gitignore               # Git の管理から外すファイル
+├── .nojekyll                # GitHub Pages で Jekyll を使わない
+├── CLAUDE.md                # Claude Code 向けの説明（英語）
+├── LICENSE                  # MIT ライセンス
+├── README.en.md             # 英語の説明
+├── README.md                # 日本語の説明
+├── index.html               # 5タブの画面
+├── package.json             # npm test の設定（依存なし）
+└── style.css                # スタイル
 ```
 
 ---

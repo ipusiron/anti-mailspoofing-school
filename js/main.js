@@ -35,7 +35,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function renderHelp() {
     helpBody.replaceChildren();
-    for (const n of [1, 2, 3, 4, 5]) {
+    for (const n of [1, 2, 3, 4, 6, 7, 5]) {
       const section = document.createElement('div');
       section.className = 'help-section';
       const heading = document.createElement('h3');

@@ -27,6 +27,8 @@
     <button type="button" class="tab-button active" role="tab" id="tab-learn" aria-controls="learn" aria-selected="true" data-tab="learn" data-i18n="tab.learn">学習モード</button>
     <button type="button" class="tab-button" role="tab" id="tab-simulate" aria-controls="simulate" aria-selected="false" tabindex="-1" data-tab="simulate" data-i18n="tab.simulate">シミュレーション</button>
     <button type="button" class="tab-button" role="tab" id="tab-challenge" aria-controls="challenge" aria-selected="false" tabindex="-1" data-tab="challenge" data-i18n="tab.challenge">チャレンジ</button>
+    <button type="button" class="tab-button" role="tab" id="tab-checker" aria-controls="checker" aria-selected="false" tabindex="-1" data-tab="checker" data-i18n="tab.checker">レコード診断</button>
+    <button type="button" class="tab-button" role="tab" id="tab-headers" aria-controls="headers" aria-selected="false" tabindex="-1" data-tab="headers" data-i18n="tab.headers">ヘッダー解読</button>
   </nav>
 
   <main>
@@ -145,6 +147,40 @@
         </div>
       </div>
     </section>
+    <!-- レコード診断 -->
+    <section id="checker" class="tab-content" role="tabpanel" aria-labelledby="tab-checker" hidden>
+      <h2 data-i18n="chk.heading">🩺 レコード診断</h2>
+      <p data-i18n="chk.intro">SPF と DMARC のレコードを貼ると、書き方の誤りや危険な設定を指摘します。</p>
+      <div class="tool-panel">
+        <div class="sample-buttons" id="checker-samples"></div>
+        <div class="input-group">
+          <label for="lint-spf-input" data-i18n="chk.spfLabel">SPF レコード</label>
+          <textarea id="lint-spf-input" rows="2" autocomplete="off" spellcheck="false" placeholder="v=spf1 ip4:192.0.2.0/24 -all"></textarea>
+        </div>
+        <div class="input-group">
+          <label for="lint-dmarc-input" data-i18n="chk.dmarcLabel">DMARC レコード</label>
+          <textarea id="lint-dmarc-input" rows="2" autocomplete="off" spellcheck="false" placeholder="v=DMARC1; p=reject; rua=mailto:dmarc@example.com"></textarea>
+        </div>
+        <button type="button" id="lint-run" class="simulate-btn" data-i18n="chk.run">🩺 診断する</button>
+        <div id="lint-results" class="lint-results" aria-live="polite"></div>
+      </div>
+    </section>
+
+    <!-- ヘッダー解読 -->
+    <section id="headers" class="tab-content" role="tabpanel" aria-labelledby="tab-headers" hidden>
+      <h2 data-i18n="hdr.heading">📨 ヘッダー解読</h2>
+      <p data-i18n="hdr.intro">受信したメールのヘッダーを貼ると、Authentication-Results の結果を読み解きます。</p>
+      <div class="tool-panel">
+        <div class="sample-buttons" id="header-samples"></div>
+        <div class="input-group">
+          <label for="header-input" data-i18n="hdr.label">メールのヘッダー</label>
+          <textarea id="header-input" rows="8" autocomplete="off" spellcheck="false"></textarea>
+          <small data-i18n="hdr.privacy">貼った内容はブラウザーの中だけで処理し、外へは送りません。</small>
+        </div>
+        <button type="button" id="header-run" class="simulate-btn" data-i18n="hdr.run">📨 読み解く</button>
+        <div id="header-results" class="header-results" aria-live="polite"></div>
+      </div>
+    </section>
   </main>
 
   <dialog id="help-modal" class="help-modal" aria-labelledby="help-title">
@@ -166,11 +202,14 @@
 
   <script src="js/i18n.js"></script>
   <script src="js/mailauth-core.js"></script>
+  <script src="js/mailauth-tools.js"></script>
   <script src="js/mailauth-data.js"></script>
   <script src="js/main.js"></script>
   <script src="js/learn.js"></script>
   <script src="js/simulate.js"></script>
   <script src="js/challenge-logic.js"></script>
   <script src="js/challenge.js"></script>
+  <script src="js/checker.js"></script>
+  <script src="js/headers.js"></script>
 </body>
 </html>

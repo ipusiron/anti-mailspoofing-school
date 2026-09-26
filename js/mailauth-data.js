@@ -50,8 +50,11 @@ const MailAuthData = (() => {
   const LINT_SAMPLES = {
     good: { spf: 'v=spf1 ip4:192.0.2.0/24 include:_spf.example.net -all',
       dmarc: 'v=DMARC1; p=reject; sp=reject; adkim=r; aspf=r; rua=mailto:dmarc-reports@example.com' },
-    bad: { spf: 'v=spf1 ip4:192.0.2.300 ptr mx include: +all ip4:198.51.100.0/24',
-      dmarc: 'p=monitor; v=DMARC1; adkim=x; pct=50; rua=dmarc@example.com' }
+    bad: { spf: 'v=spf1 ip4:192.0.2.300 ptr mx mx include: +all ip4:198.51.100.0/24',
+      dmarc: 'p=monitor; v=DMARC1; adkim=x; pct=50; rua=dmarc@example.com' },
+    // pasted as dig prints it: owner, TTL, class, type and quoted strings (the SPF one split in two)
+    dig: { spf: 'example.com. 300 IN TXT "v=spf1 ip4:192.0.2.0/24 " "include:_spf.example.net -all"',
+      dmarc: '_dmarc.example.com. 300 IN TXT "v=DMARC1; p=quarantine; rua=mailto:dmarc-reports@example.com"' }
   };
 
   // Header reader samples. In "spoof" the lower header was written by the sender, not by the receiver.

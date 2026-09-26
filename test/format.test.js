@@ -16,8 +16,9 @@ test('no minified lines', () => {
 });
 
 test('files keep their size', () => {
-  const minimum = { 'style.css': 1700, 'index.html': 150, 'js/i18n.js': 500, 'js/mailauth-core.js': 150, 'js/mailauth-data.js': 40,
-    'js/simulate.js': 200, 'js/challenge.js': 180, 'js/learn.js': 100, 'js/main.js': 50, 'js/challenge-logic.js': 30 };
+  const minimum = { 'style.css': 1800, 'index.html': 190, 'js/i18n.js': 700, 'js/mailauth-core.js': 150, 'js/mailauth-data.js': 40,
+    'js/simulate.js': 200, 'js/challenge.js': 180, 'js/learn.js': 100, 'js/main.js': 50, 'js/challenge-logic.js': 30,
+    'js/mailauth-tools.js': 160, 'js/checker.js': 60, 'js/headers.js': 80 };
   for (const [f, n] of Object.entries(minimum)) {
     const lines = read(f).split(/\r?\n/).length;
     assert.ok(lines >= n, `${f}: ${lines} < ${n}`);

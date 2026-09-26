@@ -25,7 +25,7 @@ test('no inline handlers, inline styles or inline scripts', () => {
 
 test('tabs, dialog, labels and links', () => {
   assert.match(html, /role="tablist"/);
-  for (const id of ['learn', 'simulate', 'challenge']) {
+  for (const id of ['learn', 'simulate', 'challenge', 'checker', 'headers']) {
     assert.match(html, new RegExp(`role="tab" id="tab-${id}" aria-controls="${id}" aria-selected="(true|false)"`));
     assert.match(html, new RegExp(`id="${id}" class="tab-content[^"]*" role="tabpanel" aria-labelledby="tab-${id}"`));
   }
@@ -44,7 +44,7 @@ test('scripts avoid innerHTML, style writes, alert and inline handlers', () => {
 });
 
 test('the core does not use the DOM', () => {
-  for (const name of ['mailauth-core.js', 'mailauth-data.js', 'challenge-logic.js']) {
+  for (const name of ['mailauth-core.js', 'mailauth-tools.js', 'mailauth-data.js', 'challenge-logic.js']) {
     const src = jsFiles.find(([f]) => f === name)[1];
     assert.ok(!/document\.|window\.|localStorage/.test(src), name);
   }
@@ -52,5 +52,6 @@ test('the core does not use the DOM', () => {
 
 test('script order: dictionary and core before the UI', () => {
   const order = [...html.matchAll(/<script src="js\/([^"]+)"/g)].map(m => m[1]);
-  assert.deepEqual(order, ['i18n.js', 'mailauth-core.js', 'mailauth-data.js', 'main.js', 'learn.js', 'simulate.js', 'challenge-logic.js', 'challenge.js']);
+  assert.deepEqual(order, ['i18n.js', 'mailauth-core.js', 'mailauth-tools.js', 'mailauth-data.js', 'main.js', 'learn.js', 'simulate.js',
+    'challenge-logic.js', 'challenge.js', 'checker.js', 'headers.js']);
 });

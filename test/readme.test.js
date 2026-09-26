@@ -5,6 +5,8 @@ const path = require('node:path');
 const { execFileSync } = require('node:child_process');
 const C = require('../js/mailauth-core.js');
 const D = require('../js/mailauth-data.js');
+const T = require('../js/mailauth-tools.js');
+const I = require('../js/i18n.js');
 const root = path.join(__dirname, '..');
 const readme = { ja: fs.readFileSync(path.join(root, 'README.md'), 'utf8'), en: fs.readFileSync(path.join(root, 'README.en.md'), 'utf8') };
 const cells = line => line.split('|').slice(1, -1).map(c => c.trim().replace(/^`|`$/g, ''));
@@ -44,6 +46,40 @@ test('preset results match the core in both READMEs', () => {
   }
 });
 
+test('record checker known answers match the tools in both READMEs', () => {
+  const order = { error: 0, warning: 1, info: 2 };
+  for (const [lang, heading] of [['ja', '### レコード診断の既知解答'], ['en', '### Record checker known answers']]) {
+    const rows = tableAfter(readme[lang], heading);
+    assert.equal(rows.length, 8, lang);
+    for (const [kind, record, status, text] of rows) {
+      const findings = (kind === 'SPF' ? T.lintSpf(record) : T.lintDmarc(record)).sort((a, b) => order[a.level] - order[b.level]);
+      assert.equal(T.worst(findings), status, `${lang}: ${record}`);
+      const expected = findings.map(f => I[lang][`level.${f.level}`] + ': ' +
+        I[lang][f.key].replace(/\{(\w+)\}/g, (m, k) => (k in f.values ? String(f.values[k]) : m)));
+      assert.deepEqual(text.split('<br>'), expected, `${lang}: ${record}`);
+    }
+    assert.ok(rows.some(r => r[2] === 'error') && rows.some(r => r[2] === 'warning') && rows.some(r => r[2] === 'ok'), lang);
+  }
+});
+
+test('header reader known answers match the tools in both READMEs', () => {
+  const expected = Object.keys(D.HEADER_SAMPLES).flatMap(id => T.readHeaders(D.HEADER_SAMPLES[id]).map((h, i) => ({ id, i, h })));
+  const method = e => (e ? [e.result, e.domain || '', e.aligned === true ? '✓' : e.aligned === false ? '✗' : '—'] : null);
+  const parse = cell => (cell === '—' ? null : /^`?([a-z]+)`?\s*(\S*?)\s*([✓✗—])$/.exec(cell).slice(1));
+  for (const [lang, heading] of [['ja', '### ヘッダー解読の既知解答'], ['en', '### Header reader known answers']]) {
+    const rows = tableAfter(readme[lang], heading);
+    assert.equal(rows.length, expected.length, lang);
+    rows.forEach((row, n) => {
+      const { id, i, h } = expected[n];
+      assert.ok(row[0].includes(id), `${lang} row ${n}`);
+      assert.deepEqual([row[1], row[2]], [String(i + 1), h.authservId]);
+      assert.deepEqual(parse(row[3]), method(h.spf), `${lang} ${id} spf`);
+      assert.deepEqual(row[4].split('<br>').map(parse), h.dkim.length ? h.dkim.map(method) : [null], `${lang} ${id} dkim`);
+      assert.equal(row[5], h.dmarc ? h.dmarc.result : '—');
+    });
+  }
+});
+
 test('YAML metadata keeps its structure', () => {
   const yaml = /^<!--\n---\n([\s\S]*?)\n---\n-->/.exec(readme.ja);
   assert.ok(yaml, 'YAML block');
@@ -74,7 +110,8 @@ test('images exist and assets holds only referenced PNGs', () => {
 
 test('the directory tree lists every tracked file with a description', () => {
   const tracked = execFileSync('git', ['ls-files'], { cwd: root, encoding: 'utf8' }).split('\n').filter(Boolean)
-    .concat(['test/readme.test.js', 'README.en.md', 'assets/en/screenshot.png', 'assets/screenshot2.png']);
+    .concat(['test/readme.test.js', 'test/tools.test.js', 'js/mailauth-tools.js', 'js/checker.js', 'js/headers.js', 'README.en.md',
+      'assets/en/screenshot.png', 'assets/en/screenshot2.png', 'assets/screenshot2.png', 'assets/screenshot3.png']);
   for (const lang of ['ja', 'en']) {
     const block = readme[lang].slice(readme[lang].indexOf(lang === 'ja' ? '## 📁 ディレクトリー構造' : '## 📁 Directory Structure'));
     const tree = block.slice(block.indexOf('```') + 3, block.indexOf('```', block.indexOf('```') + 3));

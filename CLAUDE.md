@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Anti-MailSpoofing School is an educational web app for learning email authentication (SPF, DKIM, DMARC and alignment). It is a defensive teaching tool: it sends no email, makes no DNS queries and has no network access. Part of "100 Security Tools with Generative AI" (Day 035).
+Anti-MailSpoofing School is an educational web app for learning email authentication (SPF, DKIM, DMARC and alignment). It also checks SPF/DMARC record syntax and reads Authentication-Results headers. It is a defensive teaching tool: it sends no email, makes no DNS queries and has no network access. Part of "100 Security Tools with Generative AI" (Day 035).
 
 ## Commands
 
@@ -17,16 +17,20 @@ Classic scripts (no ES modules, so file:// works). Load order in `index.html`:
 
 1. `js/i18n.js` - `I18n` with `ja` and `en` dictionaries, `t(key, values)`, `apply()` for `data-i18n*` attributes, language choice (`?lang=` → localStorage `anti-mailspoofing-language` → `navigator.language`)
 2. `js/mailauth-core.js` - `MailAuthCore`: IP parsing, SPF evaluation (ip4/ip6 CIDR and `all`; include/a/mx/exists/ptr/redirect are listed as not evaluated), organizational domain (short suffix list), alignment, DMARC parsing and evaluation, `evaluateMessage()`. Pure, no DOM
-3. `js/mailauth-data.js` - `MailAuthData`: ten simulation presets and twelve challenge questions (documentation domains and addresses only)
-4. `js/main.js` - tabs (WAI-ARIA tabs, arrow keys), help `<dialog>`, language button
-5. `js/learn.js` - topic cards and the five-step flow, drawn from a small state object
-6. `js/simulate.js` - form → `MailAuthCore.evaluateMessage` → DNS lookups, steps, result and suggestions. A run id prevents overlapping runs
-7. `js/challenge-logic.js` - `ChallengeLogic`: streaks count only at the highest unlocked level; three in a row unlock the next level; no immediate repeats
-8. `js/challenge.js` - challenge UI; the correct answer is always computed with `MailAuthCore`
+3. `js/mailauth-tools.js` - `MailAuthTools`: `lintSpf()` / `lintDmarc()` return findings `{ level, key, values }` (levels error, warning, info; `key` is an i18n key); `readHeaders()` unfolds and parses Authentication-Results (RFC 8601, simplified) and checks relaxed alignment with `header.from`. Pure, no DOM
+4. `js/mailauth-data.js` - `MailAuthData`: ten simulation presets, twelve challenge questions, record checker and header reader samples (documentation domains and addresses only)
+5. `js/main.js` - tabs (WAI-ARIA tabs, arrow keys), help `<dialog>`, language button
+6. `js/learn.js` - topic cards and the five-step flow, drawn from a small state object
+7. `js/simulate.js` - form → `MailAuthCore.evaluateMessage` → DNS lookups, steps, result and suggestions. A run id prevents overlapping runs
+8. `js/challenge-logic.js` - `ChallengeLogic`: streaks count only at the highest unlocked level; three in a row unlock the next level; no immediate repeats
+9. `js/challenge.js` - challenge UI; the correct answer is always computed with `MailAuthCore`
+10. `js/checker.js` - record checker tab (findings sorted errors first)
+11. `js/headers.js` - header reader tab; warns when there is more than one Authentication-Results header
 
 ## Rules
 
-- All evaluation belongs in `js/mailauth-core.js`. UI scripts must not re-implement SPF/DMARC logic.
+- All evaluation belongs in `js/mailauth-core.js` and `js/mailauth-tools.js`. UI scripts must not re-implement SPF/DMARC logic.
+- Every finding key produced by `mailauth-tools.js` must exist in both dictionaries, and every `lint.*` key must be reachable (`test/tools.test.js`).
 - Question answers are computed. `expected` in the data is only checked by the tests; never edit it to make a test pass.
 - CSP forbids inline scripts and styles: no inline event handlers, no `style=` attributes, no `.style.` writes, no `innerHTML`/`insertAdjacentHTML`, no `alert()`. Build DOM with `createElement` and `textContent`.
 - UI text lives in `js/i18n.js` (both languages, same keys). Other scripts contain no Japanese outside comments.
@@ -39,6 +43,7 @@ Classic scripts (no ES modules, so file:// works). Load order in `index.html`:
 - `test/data.test.js` - presets, questions, documentation-only examples, challenge progression
 - `test/html.test.js` - CSP, ARIA, forbidden patterns, script order
 - `test/i18n.test.js` - dictionary keys, no Japanese in English, keys used exist
+- `test/tools.test.js` - record checker findings, lookup count, header parsing and alignment, samples
 - `test/contrast.test.js` - palette contrast ratios
 - `test/format.test.js` - line lengths and minimum file sizes
 - `test/readme.test.js` - README tables, YAML structure, heading parity, images, directory tree

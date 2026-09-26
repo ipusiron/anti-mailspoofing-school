@@ -14,6 +14,8 @@ English · [日本語](README.md)
 
 Enter the details of one message and see how a receiving server evaluates it in the order SPF, DKIM, alignment and DMARC. Everything runs in your browser; the tool sends no email and makes no DNS queries.
 
+It can also check how SPF and DMARC records are written and read the Authentication-Results headers of a received message.
+
 ---
 
 ## 🌐 Demo
@@ -23,6 +25,10 @@ Enter the details of one message and see how a receiving server evaluates it in 
 ---
 
 ## 📸 Screenshots
+
+> ![Header reader in English: two Authentication-Results headers, and the forged lower one claims pass](assets/en/screenshot2.png)
+>
+> *Header reader (English UI): the forged lower header claims pass, but only the top one added by your own receiving server can be trusted*
 
 > ![Simulation in English: with an external sending service, an aligned DKIM signature makes DMARC pass](assets/en/screenshot.png)
 >
@@ -35,6 +41,10 @@ Enter the details of one message and see how a receiving server evaluates it in 
 > ![Challenge in Japanese: reading an authentication log and answering the handling](assets/screenshot2.png)
 >
 > *Challenge (Japanese UI): read the authentication log and answer accept, quarantine or reject*
+
+> ![Record checker in Japanese: errors, warnings and notes for SPF and DMARC records with problems](assets/screenshot3.png)
+>
+> *Record checker (Japanese UI): errors, warnings and notes for records with problems*
 
 ---
 
@@ -60,6 +70,20 @@ Enter the details of one message and see how a receiving server evaluates it in 
 - Three correct answers in a row at your highest unlocked level unlock the next level. The same question never appears twice in a row
 - An explanation is shown whether the answer is right or wrong
 
+### 🩺 Record checker
+
+- Paste SPF and DMARC records to see syntax errors and risky settings as errors, warnings and notes
+- SPF: position of `v=spf1`, duplicate records, unknown terms, address and range syntax, `+all` and `?all`, terms after `all`, `ptr`, the DNS lookup count (limit 10) and length over 255 characters
+- DMARC: `v=DMARC1` first, values of `p=`, `sp=`, `adkim=`, `aspf=` and `pct=`, `mailto:` in `rua=` and `ruf=`, duplicate and unknown tags, `p=none` staying at monitoring, and a missing `rua=`
+- Samples of a good record and a record with problems
+
+### 📨 Header reader
+
+- Paste the headers of a received message to read the spf, dkim and dmarc results in `Authentication-Results`
+- Handles folded lines and comments in parentheses, and shows whether SPF `smtp.mailfrom` and DKIM `header.d` align with `header.from` (relaxed)
+- With two or more `Authentication-Results` headers, warns that only the one added by your own receiving server (usually the top one) can be trusted
+- Three samples: everything passes, spoofing (with a forged header) and forwarding
+
 ### 🌏 Japanese and English, help
 
 - The button at the top right switches between Japanese and English (you can also use `?lang=ja|en` in the URL)
@@ -72,6 +96,8 @@ Enter the details of one message and see how a receiving server evaluates it in 
 1. In **📘 Learn**, read the four cards and the authentication flow
 2. In **🧪 Simulation**, evaluate the presets one by one and compare the results. Edit the values to try your own conditions
 3. In **🎯 Challenge**, predict the handling from the authentication log. Read the explanations as you move up to Advanced
+4. In **🩺 Record checker**, paste your domain's SPF and DMARC records (the values of the DNS TXT records)
+5. In **📨 Header reader**, paste the headers of a received message (for example from "View source" in your mail client) and read the results
 
 The tool works when the file is opened directly (file://) and when served from a web server.
 
@@ -206,12 +232,40 @@ Errors in the previous version and their fixes:
 | Subdomain policy (`subdomain`) | `news.example.com` | `news.example.com` | `203.0.113.9` | `fail` | `fail (d=news.example.com)` | `v=DMARC1; p=reject; sp=quarantine` | `fail` | `quarantine` |
 | Beware partial IP matches (`substring`) | `example.com` | `example.com` | `192.0.2.1` | `fail` | `none` | `v=DMARC1; p=quarantine` | `fail` | `quarantine` |
 
+### Record checker known answers
+
+Results of `lintSpf()` and `lintDmarc()` in `js/mailauth-tools.js`.
+
+| Kind | Record | Status | Findings |
+| --- | --- | --- | --- |
+| SPF | `v=spf1 ip4:192.0.2.0/24 include:_spf.example.net -all` | `ok` | Note: This record alone has 1 terms that need DNS lookups. Keep the total, including nested includes, within 10.<br>Note: -all makes other senders fail. |
+| SPF | `v=spf1 ip4:192.0.2.0/24 ~all` | `ok` | Note: ~all gives other senders softfail. DMARC does not count it as a pass. |
+| SPF | `v=spf1 +all` | `error` | Error: +all allows mail from any IP address. It cannot stop spoofing; do not use it. |
+| SPF | `v=spf1 include:_spf.example.net` | `warning` | Warning: There is neither all nor redirect=. Senders that match nothing get neutral.<br>Note: This record alone has 1 terms that need DNS lookups. Keep the total, including nested includes, within 10. |
+| SPF | `v=spf1 ip4:192.0.2.300 ptr -all ip4:198.51.100.0/24` | `error` | Error: The address or range is malformed: ip4:192.0.2.300<br>Warning: ptr should not be used (RFC 7208).<br>Warning: Terms after all are never evaluated: ip4:198.51.100.0/24<br>Note: This record alone has 1 terms that need DNS lookups. Keep the total, including nested includes, within 10.<br>Note: -all makes other senders fail. |
+| DMARC | `v=DMARC1; p=reject; sp=reject; rua=mailto:dmarc@example.com` | `ok` | Note: p=reject asks receivers to reject failing mail. |
+| DMARC | `v=DMARC1; p=none` | `warning` | Warning: There is no rua= (where aggregate reports go). Reports help confirm legitimate senders.<br>Note: p=none only monitors. Check the aggregate reports, then move to quarantine and then reject.<br>Note: There is no sp=, so subdomains also use p=none. |
+| DMARC | `p=reject; v=DMARC1; adkim=x; rua=dmarc@example.com` | `error` | Error: v=DMARC1 must come first.<br>Error: Invalid adkim= value (use r or s): x<br>Error: The rua= destination must start with mailto: dmarc@example.com<br>Note: p=reject asks receivers to reject failing mail.<br>Note: There is no sp=, so subdomains also use p=reject. |
+
+### Header reader known answers
+
+The header reader samples read with `readHeaders()`. ✓ means aligned with From, ✗ means not aligned, and — means not checked because the result is not a pass.
+
+| Sample | Order | Added by | SPF | DKIM | DMARC |
+| --- | --- | --- | --- | --- | --- |
+| everything passes (`pass`) | 1 | `mx.example.net` | `pass` bounce.example.com ✓ | `pass` example.com ✓ | `pass` |
+| spoofing (`spoof`) | 1 | `mx.example.net` | `fail` example.com — | `none` — | `fail` |
+| spoofing (`spoof`) | 2 | `mx.example.org` | `pass` example.com ✓ | `pass` example.com ✓ | `pass` |
+| forwarded (`forward`) | 1 | `mx.example.net` | `softfail` example.com — | `pass` example.com ✓ | `pass` |
+
 ### Simplifications
 
 - SPF `include`, `a`, `mx`, `exists`, `ptr` and `redirect=` need DNS lookups, so they are not evaluated and are listed as terms not evaluated
 - Organizational domains come from a short list (real receivers use the Public Suffix List)
 - DKIM is chosen as a result (pass, fail, none) with a signing domain; no signature is computed
 - DMARC `pct=` and the receiver's own local policy are not modeled
+- The record checker does not fetch included records, so DNS lookups are counted within the pasted record only
+- The header reader cannot tell whether a header is genuine. Alignment is shown in relaxed mode only
 
 ---
 
@@ -283,6 +337,7 @@ _dmarc.example.com. IN TXT "v=DMARC1; p=quarantine; sp=reject; adkim=r; aspf=r; 
 - No email sending, no DNS queries and no network access (CSP `default-src 'none'`)
 - The CSP uses `script-src 'self'` and `style-src 'self'`; there are no inline scripts or styles
 - Input is shown with DOM `textContent` and is never interpreted as HTML
+- Pasted records and headers are processed only in the browser and are neither stored nor sent
 - localStorage stores only the display language (the tool works when storage is unavailable)
 
 ---
@@ -299,6 +354,7 @@ npm test
 - `test/data.test.js`: the presets and twelve questions (answers are computed), use of documentation domains and addresses only, and challenge progression
 - `test/html.test.js`: CSP, ARIA and forbidden patterns (innerHTML, inline handlers and so on)
 - `test/i18n.test.js`: matching Japanese and English keys, no Japanese left in English
+- `test/tools.test.js`: record checker findings, the DNS lookup count, header reading and alignment, and Japanese and English text for every finding
 - `test/contrast.test.js`: color contrast ratios
 - `test/format.test.js`: line lengths and file sizes
 - `test/readme.test.js`: the tables, structure and images of this README and README.md
@@ -309,40 +365,46 @@ npm test
 
 ```
 anti-mailspoofing-school/
-├── .github/                # GitHub settings
-│   └── workflows/          # GitHub Actions workflows
-│       └── test.yml        # Runs npm test on push and pull_request
-├── assets/                 # Images
-│   ├── en/                 # Screenshots of the English UI
-│   │   └── screenshot.png  # English simulation (external sending service)
-│   ├── screenshot.png      # Simulation (SPF passes for another domain, rejected)
-│   └── screenshot2.png     # Challenge after answering
-├── js/                     # Scripts (classic scripts)
-│   ├── challenge-logic.js  # Challenge progression rules (no DOM)
-│   ├── challenge.js        # Challenge tab
-│   ├── i18n.js             # Japanese and English messages, language switching
-│   ├── learn.js            # Learn tab
-│   ├── mailauth-core.js    # SPF, alignment and DMARC evaluation (no DOM)
-│   ├── mailauth-data.js    # Ten presets and twelve questions
-│   ├── main.js             # Tabs, help and language switching
-│   └── simulate.js         # Simulation tab
-├── test/                   # Automated tests (node --test)
-│   ├── contrast.test.js    # Color contrast ratios
-│   ├── core.test.js        # Evaluation logic
-│   ├── data.test.js        # Presets, questions and challenge progression
-│   ├── format.test.js      # Line lengths and file sizes
-│   ├── html.test.js        # CSP, ARIA and forbidden patterns
-│   ├── i18n.test.js        # Japanese and English messages
-│   └── readme.test.js      # README tables, structure and images
-├── .gitignore              # Files ignored by Git
-├── .nojekyll               # Disables Jekyll on GitHub Pages
-├── CLAUDE.md               # Notes for Claude Code (English)
-├── LICENSE                 # MIT license
-├── README.en.md            # English README
-├── README.md               # Japanese README
-├── index.html              # Page with three tabs
-├── package.json            # npm test configuration (no dependencies)
-└── style.css               # Styles
+├── .github/                 # GitHub settings
+│   └── workflows/           # GitHub Actions workflows
+│       └── test.yml         # Runs npm test on push and pull_request
+├── assets/                  # Images
+│   ├── en/                  # Screenshots of the English UI
+│   │   ├── screenshot.png   # English simulation (external sending service)
+│   │   └── screenshot2.png  # English header reader (with a forged header)
+│   ├── screenshot.png       # Simulation (SPF passes for another domain, rejected)
+│   ├── screenshot2.png      # Challenge after answering
+│   └── screenshot3.png      # Record checker (example with problems)
+├── js/                      # Scripts (classic scripts)
+│   ├── challenge-logic.js   # Challenge progression rules (no DOM)
+│   ├── challenge.js         # Challenge tab
+│   ├── checker.js           # Record checker tab
+│   ├── headers.js           # Header reader tab
+│   ├── i18n.js              # Japanese and English messages, language switching
+│   ├── learn.js             # Learn tab
+│   ├── mailauth-core.js     # SPF, alignment and DMARC evaluation (no DOM)
+│   ├── mailauth-data.js     # Ten presets, twelve questions and samples
+│   ├── mailauth-tools.js    # Record syntax checks and header reading (no DOM)
+│   ├── main.js              # Tabs, help and language switching
+│   └── simulate.js          # Simulation tab
+├── test/                    # Automated tests (node --test)
+│   ├── contrast.test.js     # Color contrast ratios
+│   ├── core.test.js         # Evaluation logic
+│   ├── data.test.js         # Presets, questions and challenge progression
+│   ├── format.test.js       # Line lengths and file sizes
+│   ├── html.test.js         # CSP, ARIA and forbidden patterns
+│   ├── i18n.test.js         # Japanese and English messages
+│   ├── readme.test.js       # README tables, structure and images
+│   └── tools.test.js        # Record checker and header reader
+├── .gitignore               # Files ignored by Git
+├── .nojekyll                # Disables Jekyll on GitHub Pages
+├── CLAUDE.md                # Notes for Claude Code (English)
+├── LICENSE                  # MIT license
+├── README.en.md             # English README
+├── README.md                # Japanese README
+├── index.html               # Page with five tabs
+├── package.json             # npm test configuration (no dependencies)
+└── style.css                # Styles
 ```
 
 ---

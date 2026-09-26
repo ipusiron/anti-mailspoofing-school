@@ -4,48 +4,41 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Anti-MailSpoofing School is an educational web application for learning about email authentication mechanisms (SPF, DKIM, DMARC). This is a defensive security educational tool - no actual email sending or malicious functionality exists.
+Anti-MailSpoofing School is an educational web app for learning email authentication (SPF, DKIM, DMARC and alignment). It is a defensive teaching tool: it sends no email, makes no DNS queries and has no network access. Part of "100 Security Tools with Generative AI" (Day 035).
 
-## Development Commands
+## Commands
 
-Since this is a static site with no build process:
-- **Run locally**: `python -m http.server` or open index.html directly in browser
-- **Test changes**: Refresh browser after editing files
-- **Deploy**: Commit to main branch for GitHub Pages deployment (https://ipusiron.github.io/anti-mailspoofing-school/)
+- `npm test` runs `node --test` (Node.js 22+, no dependencies). GitHub Actions runs it on push and pull_request.
+- Open `index.html` directly (file://) or serve the folder with any static server. There is no build step.
 
 ## Architecture
 
-### Core Structure
-- **Frontend-only application**: Pure HTML/CSS/JavaScript, no backend or build step
-- **Three main modes**: Learn, Simulate, and Challenge tabs
-- **Module pattern**: Each tab has its own JavaScript module in `js/`
-- **Tab management**: main.js handles tab switching via data-tab attributes and active CSS classes
-- **Help modal**: Managed in main.js with ESC key and background click close support
+Classic scripts (no ES modules, so file:// works). Load order in `index.html`:
 
-### JavaScript Module Responsibilities
-- `main.js`: Tab switching, help modal control
-- `learn.js`: Educational content with interactive flow diagrams and CSS animations
-- `simulate.js`: 7 preset scenarios, DNS visualization, step-by-step async execution with `async/await`
-- `challenge.js`: 9-question database (3 per level), progressive unlock system (3 consecutive correct answers unlock next level)
+1. `js/i18n.js` - `I18n` with `ja` and `en` dictionaries, `t(key, values)`, `apply()` for `data-i18n*` attributes, language choice (`?lang=` → localStorage `anti-mailspoofing-language` → `navigator.language`)
+2. `js/mailauth-core.js` - `MailAuthCore`: IP parsing, SPF evaluation (ip4/ip6 CIDR and `all`; include/a/mx/exists/ptr/redirect are listed as not evaluated), organizational domain (short suffix list), alignment, DMARC parsing and evaluation, `evaluateMessage()`. Pure, no DOM
+3. `js/mailauth-data.js` - `MailAuthData`: ten simulation presets and twelve challenge questions (documentation domains and addresses only)
+4. `js/main.js` - tabs (WAI-ARIA tabs, arrow keys), help `<dialog>`, language button
+5. `js/learn.js` - topic cards and the five-step flow, drawn from a small state object
+6. `js/simulate.js` - form → `MailAuthCore.evaluateMessage` → DNS lookups, steps, result and suggestions. A run id prevents overlapping runs
+7. `js/challenge-logic.js` - `ChallengeLogic`: streaks count only at the highest unlocked level; three in a row unlock the next level; no immediate repeats
+8. `js/challenge.js` - challenge UI; the correct answer is always computed with `MailAuthCore`
 
-## Key Implementation Patterns
+## Rules
 
-### State Management
-- Challenge mode uses `challengeState` object for tracking progress, unlocked levels, and streaks
-- Animation control uses `isPlaying` flag with proper `clearTimeout()` cleanup
-- Form state synchronization between preset scenarios and custom input
+- All evaluation belongs in `js/mailauth-core.js`. UI scripts must not re-implement SPF/DMARC logic.
+- Question answers are computed. `expected` in the data is only checked by the tests; never edit it to make a test pass.
+- CSP forbids inline scripts and styles: no inline event handlers, no `style=` attributes, no `.style.` writes, no `innerHTML`/`insertAdjacentHTML`, no `alert()`. Build DOM with `createElement` and `textContent`.
+- UI text lives in `js/i18n.js` (both languages, same keys). Other scripts contain no Japanese outside comments.
+- Colors used for text are the variables in the `:root` block at the end of `style.css`; `test/contrast.test.js` checks them.
+- README tables are generated from the core; `test/readme.test.js` recomputes them.
 
-### Security
-- XSS protection via `escapeHtml()` function in simulate.js
-- Double-submit prevention via button/radio disabling after answer submission
+## Tests
 
-### Email Authentication Logic (Simplified)
-- SPF: Checks if sending IP matches `ip4:` in SPF record string
-- DKIM: Simple pass/fail radio button
-- DMARC: SPF OR DKIM pass = DMARC pass; otherwise apply policy (none/quarantine/reject)
-
-## Important Notes
-
-- UI is entirely in Japanese
-- Part of "100 Security Tools with Generative AI" project series (Day 035)
-- MIT Licensed
+- `test/core.test.js` - SPF, IP parsing, organizational domain, alignment, DMARC
+- `test/data.test.js` - presets, questions, documentation-only examples, challenge progression
+- `test/html.test.js` - CSP, ARIA, forbidden patterns, script order
+- `test/i18n.test.js` - dictionary keys, no Japanese in English, keys used exist
+- `test/contrast.test.js` - palette contrast ratios
+- `test/format.test.js` - line lengths and minimum file sizes
+- `test/readme.test.js` - README tables, YAML structure, heading parity, images, directory tree

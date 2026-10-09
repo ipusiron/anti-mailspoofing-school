@@ -337,6 +337,20 @@ _dmarc.example.com. IN TXT "v=DMARC1; p=quarantine; sp=reject; adkim=r; aspf=r; 
 
 ---
 
+## 🎯 Use cases
+
+### Ways of using this tool in particular
+
+- Confirming that SPF checks whether the sender IP is in the allowed range (email-authentication classes): SPF checks whether the actual sender IP is within the range the sender's domain declared as "allowed to send from this IP". With `v=spf1 ip4:192.0.2.0/24 -all`, 192.0.2.10 passes and the out-of-range 203.0.113.5 fails. You can confirm the mechanism of preventing spoofing by IP address range
+- Confirming that even an SPF pass is rejected by DMARC when the sender does not match (alignment classes): when the From is example.com but the domain that passes SPF is evil.com, SPF itself passes, but because it does not match (align with) the From, DMARC fails, and with a reject policy it is rejected. You can confirm that an SPF pass alone does not guarantee the visible sender and that DMARC's alignment check is needed
+- Confirming that the organizational domain is decided by the public suffix (domain classes): the alignment check compares organizational domains, not host names. The organizational domain of `mail.example.co.jp` treats `co.jp` as a two-label suffix by the Public Suffix List and is `example.co.jp`. You can confirm deciding how far the organization's domain reaches from the right
+
+### General uses
+
+- Learn how SPF, DKIM and DMARC work and the flow by which a spoofed email is rejected
+- Use it as material to consider your organization's DMARC policy (none, quarantine or reject)
+- Explain the idea of alignment in email authentication
+
 ## 🔒 Security of This Tool
 
 - No email sending, no DNS queries and no network access (CSP `default-src 'none'`)

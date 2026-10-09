@@ -127,3 +127,20 @@ test('removed claims stay removed', () => {
   }
   assert.match(readme.ja, /Domain-based Message Authentication, Reporting and Conformance|RFC 7489/);
 });
+
+test('ユースケースの「このツールならではの使い方」を mailauth-core.js で再計算（日英）', () => {
+  const C = require('../js/mailauth-core.js');
+  assert.equal(C.evaluateSpf('v=spf1 ip4:192.0.2.0/24 -all', '192.0.2.10').result, 'pass');
+  assert.equal(C.evaluateSpf('v=spf1 ip4:192.0.2.0/24 -all', '203.0.113.5').result, 'fail');
+  const spoof = C.evaluateMessage({
+    fromDomain: 'example.com', mailFromDomain: 'evil.com', senderIp: '203.0.113.5',
+    spfRecord: 'v=spf1 ip4:203.0.113.0/24 -all', dkim: [], dmarcRecord: 'v=DMARC1; p=reject'
+  });
+  assert.equal(spoof.spf.result, 'pass');
+  assert.equal(spoof.dmarc.spfAligned, false);
+  assert.equal(spoof.dmarc.disposition, 'reject');
+  assert.equal(C.organizationalDomain('mail.example.co.jp'), 'example.co.jp');
+  for (const md of [readme.ja, readme.en]) {
+    assert.ok(md.includes('192.0.2.0/24') && md.includes('mail.example.co.jp') && md.includes('example.co.jp'));
+  }
+});
